@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     azure_ml_resource_group: str
 
     # Azure SQL Database settings
-    sql_server: str = "automldbserver.database.windows.net"
-    sql_database: str = "automldb"
+    sql_server: str = "automldb.whatever.microsoft"
+    sql_database: str = "automl"
     sql_port: int = 1433
 
     # For local development only (optional)

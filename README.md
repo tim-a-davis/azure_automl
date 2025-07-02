@@ -2,6 +2,11 @@
 
 This project exposes a FastAPI service around Azure AutoML for multi-tenant use.
 
+The service persists metadata in an Azure SQL Database. By default it expects a
+database named `automl` hosted at `automldb.whatever.microsoft`. The
+`SQL_SERVER` and `SQL_DATABASE` settings can be overridden via environment
+variables or a `.env` file.
+
 ## Delivery Plan
 
 - **Week 1**: configuration, auth, health check, database migrations
