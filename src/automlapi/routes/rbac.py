@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
-from jwt import PyJWKClient
+try:
+    from jwt.jwks_client import PyJWKClient
+except Exception:  # pragma: no cover - optional dependency
+    PyJWKClient = None
 from azure.identity import OnBehalfOfCredential
 from azure.mgmt.authorization import AuthorizationManagementClient
 
@@ -11,12 +14,14 @@ router = APIRouter()
 security = HTTPBearer()
 
 JWKS_URL = f"https://login.microsoftonline.com/{settings.azure_tenant_id}/discovery/v2.0/keys"
-jwks_client = PyJWKClient(JWKS_URL)
+jwks_client = PyJWKClient(JWKS_URL) if PyJWKClient else None
 
 
 def verify_token(auth: HTTPAuthorizationCredentials = Depends(security)) -> str:
     token = auth.credentials
     try:
+        if jwks_client is None:
+            raise RuntimeError("PyJWKClient unavailable")
         signing_key = jwks_client.get_signing_key_from_jwt(token).key
         claims = jwt.decode(
             token,
@@ -32,8 +37,15 @@ def verify_token(auth: HTTPAuthorizationCredentials = Depends(security)) -> str:
     return token
 
 
-@router.get("/rbac/assignments")
-def list_assignments(user_token: str = Depends(verify_token)):
+@router.get(
+    "/rbac/assignments",
+    operation_id="list_rbac_assignments",
+)
+def list_assignments(user_token: str = Depends(verify_token)) -> list[dict]:
+    """List Azure role assignments for the caller.
+
+    Uses on-behalf-of flow to query the Management API with the caller's token.
+    """
     credential = OnBehalfOfCredential(
         tenant_id=settings.azure_tenant_id,
         client_id=settings.azure_client_id,

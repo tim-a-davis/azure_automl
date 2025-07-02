@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -11,12 +11,21 @@ router = APIRouter()
 service = AzureAutoMLService()
 
 
-@router.post("/datasets", response_model=Dataset)
+@router.post(
+    "/datasets",
+    response_model=Dataset,
+    operation_id="create_dataset",
+)
 async def create_dataset(
-    file: UploadFile = File(...),
+    file: UploadFile = File(..., description="Dataset file to upload"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> Dataset:
+    """Upload a dataset file.
+
+    Reads the provided file and stores it in the workspace. Returns metadata
+    about the created dataset record.
+    """
     data = await file.read()
     try:
         dataset = service.upload_dataset(file.filename, data)
@@ -36,22 +45,57 @@ async def create_dataset(
     return dataset
 
 
-@router.get("/datasets", response_model=list[Dataset])
-async def list_datasets(user=Depends(get_current_user), db: Session = Depends(get_db)):
+@router.get(
+    "/datasets",
+    response_model=list[Dataset],
+    operation_id="list_datasets",
+)
+async def list_datasets(
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[Dataset]:
+    """List uploaded datasets.
+
+    Returns all dataset records stored in the database for the current tenant.
+    """
     records = db.query(DatasetModel).all()
     return [Dataset(**r.__dict__) for r in records]
 
 
-@router.get("/datasets/{dataset_id}", response_model=Dataset)
-async def get_dataset(dataset_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+@router.get(
+    "/datasets/{dataset_id}",
+    response_model=Dataset,
+    operation_id="get_dataset",
+)
+async def get_dataset(
+    dataset_id: str = Path(..., description="Dataset identifier"),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dataset:
+    """Retrieve a single dataset.
+
+    Returns the dataset record for the given identifier if it exists.
+    """
     record = db.get(DatasetModel, dataset_id)
     if not record:
         raise HTTPException(status_code=404, detail="Dataset not found")
     return Dataset(**record.__dict__)
 
 
-@router.delete("/datasets/{dataset_id}", status_code=204)
-async def delete_dataset(dataset_id: str, user=Depends(get_current_user), db: Session = Depends(get_db)):
+@router.delete(
+    "/datasets/{dataset_id}",
+    status_code=204,
+    operation_id="delete_dataset",
+)
+async def delete_dataset(
+    dataset_id: str = Path(..., description="Dataset identifier"),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Remove an existing dataset.
+
+    Deletes the dataset record and associated storage if found.
+    """
     record = db.get(DatasetModel, dataset_id)
     if not record:
         raise HTTPException(status_code=404, detail="Dataset not found")
@@ -60,13 +104,21 @@ async def delete_dataset(dataset_id: str, user=Depends(get_current_user), db: Se
     return None
 
 
-@router.put("/datasets/{dataset_id}", response_model=Dataset)
+@router.put(
+    "/datasets/{dataset_id}",
+    response_model=Dataset,
+    operation_id="update_dataset",
+)
 async def update_dataset(
-    dataset_id: str,
     dataset: Dataset,
+    dataset_id: str = Path(..., description="Dataset identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> Dataset:
+    """Modify an existing dataset.
+
+    Updates the stored metadata with the fields provided in the request body.
+    """
     record = db.get(DatasetModel, dataset_id)
     if not record:
         raise HTTPException(status_code=404, detail="Dataset not found")

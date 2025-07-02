@@ -22,6 +22,7 @@ To run the API you will need access to several Azure resources and some local to
 - A **service principal** with permissions to the workspace (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`).
 - An **Azure SQL Database** for persisting metadata (`SQL_SERVER`, `SQL_DATABASE` and optional `SQL_USERNAME`/`SQL_PASSWORD`).
 - A secret used to sign JSON Web Tokens (`JWT_SECRET`).
+- [fastapi-mcp](https://pypi.org/project/fastapi-mcp/) to expose the API as an MCP server.
 
 ## Quick start
 
@@ -66,6 +67,19 @@ The following routes are implemented by `automlapi.routes`:
 - `GET  /users` – list users.
 
 WebSocket endpoints are available for run status and endpoint traffic streaming. See the source under `src/automlapi/routes` for details.
+
+## Using as an MCP server
+
+The API can be exposed as a [Model Context Protocol](https://tadata.com) (MCP) server by leveraging the [fastapi-mcp](https://pypi.org/project/fastapi-mcp/) library. When the application starts it mounts an MCP server at the `/mcp` path, automatically converting available routes into MCP tools that language models can invoke.
+
+With the package installed, no additional configuration is required. Simply start the server and query the MCP endpoint:
+
+```bash
+uv run python -m automlapi.runserver
+# tools will be available under http://localhost:8000/mcp
+```
+
+Consult the [fastapi-mcp documentation](https://fastapi-mcp.tadata.com/) for advanced usage and authentication options.
 
 ## Setting up Azure RBAC passthrough
 
