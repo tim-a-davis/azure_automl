@@ -25,10 +25,10 @@ To run the API you will need access to several Azure resources and some local to
 
 ## Quick start
 
-1. Install dependencies (Python 3.11) using [uv](https://github.com/astral-sh/uv):
+1. Install dependencies using [uv](https://github.com/astral-sh/uv):
 
    ```bash
-   uv pip install -r requirements.txt
+   uv sync
    ```
 
 2. Provide the required Azure and database settings as environment variables. At a minimum the following values are expected:
@@ -63,10 +63,10 @@ WebSocket endpoints are available for run status and endpoint traffic streaming.
 
 ## Testing
 
-Run unit tests with `pytest`:
+Run unit tests with `uv run pytest`:
 
 ```bash
-pytest
+uv run pytest
 ```
 
 ## Project status
