@@ -1,18 +1,62 @@
-# Azure AutoML Wrapper
+# Azure AutoML API
 
-This project exposes a FastAPI service around Azure AutoML for multi-tenant use.
+This repository contains a thin REST layer built with **FastAPI** for interacting with Azure Machine Learning's AutoML capabilities. It is intended to sit between a web frontend and Azure, providing a unified set of HTTP endpoints to manage datasets, run experiments and deploy models.
 
-The service persists metadata in an Azure SQL Database. By default it expects a
-database named `automl` hosted at `automldb.whatever.microsoft`. The
-`SQL_SERVER` and `SQL_DATABASE` settings can be overridden via environment
-variables or a `.env` file.
+The application exposes several routes that wrap the Azure ML SDK. Incoming requests are authenticated via a simple JWT bearer token and tenant information is attached to the request. Azure credentials and database connection details are loaded from environment variables. Metadata for datasets, runs and models is stored in an Azure SQL Database through SQLAlchemy.
 
-## Delivery Plan
+## Features
 
-- **Week 1**: configuration, auth, health check, database migrations
-- **Week 2**: dataset upload and profiling workflow
-- **Week 3**: experiment launch and run monitoring
-- **Week 4**: model registration and browsing
-- **Week 5**: endpoint deployment and blue-green traffic control
-- **Week 6**: cost sync, quota enforcement, credential rotation
-- **Week 7**: tests, CI pipeline, deployment documentation
+- Upload datasets to the workspace
+- Launch AutoML experiments and monitor runs
+- Browse registered models and endpoints
+- Example background tasks for log streaming and dataset profiling
+
+The service stores metadata in an Azure SQL Database using SQLAlchemy. Connection details and Azure credentials are supplied via environment variables or a `.env` file read by `Settings` in `automlapi.config`.
+
+## Quick start
+
+1. Install dependencies (Python 3.11) using [uv](https://github.com/astral-sh/uv):
+
+   ```bash
+   uv pip install -r requirements.txt
+   ```
+
+2. Provide the required Azure and database settings as environment variables. At a minimum the following values are expected:
+
+   - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+   - `AZURE_SUBSCRIPTION_ID`, `AZURE_ML_WORKSPACE`, `AZURE_ML_RESOURCE_GROUP`
+   - `JWT_SECRET`
+
+3. Launch the API server:
+
+   ```bash
+   uv run python -m automlapi.runserver
+   ```
+
+   The server listens on `http://0.0.0.0:8000`.
+
+## Endpoints
+
+The following routes are implemented by `automlapi.routes`:
+
+- `POST /datasets` – upload a file and register it as an Azure ML dataset.
+- `GET  /datasets` – list available datasets.
+- `POST /experiments` – start an experiment using the provided configuration.
+- `GET  /experiments` – list experiments in the workspace.
+- `GET  /runs` – list runs for the workspace.
+- `GET  /models` – list registered models.
+- `GET  /endpoints` – list deployment endpoints.
+
+WebSocket endpoints are available for run status and endpoint traffic streaming. See the source under `src/automlapi/routes` for details.
+
+## Testing
+
+Run unit tests with `pytest`:
+
+```bash
+pytest
+```
+
+## Project status
+
+This implementation acts as a starting point. A number of areas require further work (see `future_work.md`) before it can serve as a full production API.
