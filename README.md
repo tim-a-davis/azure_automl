@@ -20,7 +20,7 @@ To run the API you will need access to several Azure resources and some local to
 - **Python 3.11** along with [uv](https://github.com/astral-sh/uv) for installing packages.
 - An **Azure subscription** containing an Azure Machine Learning workspace.
 - A **service principal** with permissions to the workspace (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`).
-- An **Azure SQL Database** for persisting metadata (`SQL_SERVER`, `SQL_DATABASE` and optional `SQL_USERNAME`/`SQL_PASSWORD`).
+- An **Azure SQL Database** for persisting metadata (`SQL_SERVER`, `SQL_DATABASE`). Authentication uses the same service principal credentials as Azure ML (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`).
 - A secret used to sign JSON Web Tokens (`JWT_SECRET`).
 - [fastapi-mcp](https://pypi.org/project/fastapi-mcp/) to expose the API as an MCP server.
 
