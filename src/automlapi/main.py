@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import uvicorn
 
-from .routes import datasets, experiments, runs, models, endpoints, users
+from .routes import datasets, experiments, runs, models, endpoints, users, rbac
 from .config import settings
 
 app = FastAPI()
@@ -48,6 +48,7 @@ app.include_router(runs.router)
 app.include_router(models.router)
 app.include_router(endpoints.router)
 app.include_router(users.router)
+app.include_router(rbac.router)
 
 scheduler = AsyncIOScheduler()
 
