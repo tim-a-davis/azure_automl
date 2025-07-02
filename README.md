@@ -13,6 +13,16 @@ The application exposes several routes that wrap the Azure ML SDK. Incoming requ
 
 The service stores metadata in an Azure SQL Database using SQLAlchemy. Connection details and Azure credentials are supplied via environment variables or a `.env` file read by `Settings` in `automlapi.config`.
 
+## Dependencies
+
+To run the API you will need access to several Azure resources and some local tools:
+
+- **Python 3.11** along with [uv](https://github.com/astral-sh/uv) for installing packages.
+- An **Azure subscription** containing an Azure Machine Learning workspace.
+- A **service principal** with permissions to the workspace (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`).
+- An **Azure SQL Database** for persisting metadata (`SQL_SERVER`, `SQL_DATABASE` and optional `SQL_USERNAME`/`SQL_PASSWORD`).
+- A secret used to sign JSON Web Tokens (`JWT_SECRET`).
+
 ## Quick start
 
 1. Install dependencies (Python 3.11) using [uv](https://github.com/astral-sh/uv):
