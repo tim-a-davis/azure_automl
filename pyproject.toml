@@ -28,3 +28,6 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 runserver = "automlapi.runserver:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/automlapi"]
