@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Generator
 
 from azure.identity import DefaultAzureCredential
@@ -51,7 +50,7 @@ class DatabaseManager:
             # Test connection
             try:
                 with self._engine.connect() as conn:
-                    result = conn.execute(text("SELECT 1 as test"))
+                    conn.execute(text("SELECT 1 as test"))
                     logger.info(
                         f"Database connection established successfully to {settings.sql_server}"
                     )
