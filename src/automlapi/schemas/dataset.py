@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from uuid import UUID
-from typing import List, Any
+from typing import List
 
 class Dataset(BaseModel):
     id: UUID

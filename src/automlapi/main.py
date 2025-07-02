@@ -1,11 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import uvicorn
 
 from .routes import datasets, experiments, runs, models, endpoints
-from .auth import get_current_user
 from .config import settings
 
 app = FastAPI()

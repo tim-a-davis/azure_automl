@@ -5,7 +5,6 @@ from azure.ai.ml import MLClient, command
 from azure.ai.ml.entities import Data, OnlineDeployment
 import tempfile
 import os
-from datetime import datetime
 
 from ..config import settings
 from ..schemas.dataset import Dataset as DatasetSchema
