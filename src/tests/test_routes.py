@@ -13,6 +13,7 @@ os.environ.setdefault("JWT_SECRET", "secret")
 from app.main import app
 from app.db import Base, get_db
 import app.routes.datasets as datasets_route
+import app.routes.experiments as experiments_route
 from unittest.mock import patch
 from uuid import UUID
 
@@ -49,4 +50,26 @@ def test_create_dataset(mock_upload):
     with open("/tmp/testfile", "rb") as f:
         response = client.post("/datasets", files={"file": ("data.csv", f, "text/csv")})
     assert response.status_code in (200, 403)
+    app.dependency_overrides.clear()
+
+
+@patch.object(experiments_route.service, "start_experiment")
+def test_start_experiment(mock_start):
+    app.dependency_overrides[get_db] = override_db
+    mock_start.return_value = experiments_route.Run(
+        id=UUID("11111111-1111-1111-1111-111111111111"),
+        tenant_id="t",
+        job_name="job1",
+    )
+    exp = {
+        "id": "11111111-1111-1111-1111-111111111111",
+        "tenant_id": "t",
+        "task_type": "classification",
+    }
+    response = client.post("/experiments", json=exp)
+    assert response.status_code in (200, 403)
+    if response.status_code == 200:
+        list_resp = client.get("/experiments")
+        assert list_resp.status_code == 200
+        assert len(list_resp.json()) == 1
     app.dependency_overrides.clear()
