@@ -1,6 +1,1 @@
-- Add module/function docstrings across the code base for clarity.
-- Use `tempfile.TemporaryDirectory()` in `AzureAutoMLService.upload_dataset` to automatically clean up temporary files.
-- Instantiate `AzureAutoMLService` per request instead of module level to prevent shared-state issues.
-- Expand unit tests to cover error cases and additional routes.
-- Remove the empty `utils` package or populate it with shared helpers.
-- Provide helper methods to convert SQLAlchemy models to Pydantic schemas to avoid `**record.__dict__` patterns.
+
