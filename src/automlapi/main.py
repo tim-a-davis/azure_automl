@@ -4,11 +4,20 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import uvicorn
+from fastapi_mcp.server import FastApiMCP
 
 from .routes import datasets, experiments, runs, models, endpoints, users, rbac
 from .config import settings
 
 app = FastAPI()
+
+# Expose API endpoints as MCP tools for language models
+mcp = FastApiMCP(
+    app,
+    describe_all_responses=True,
+    describe_full_response_schema=True,
+)
+mcp.mount()
 
 
 @app.exception_handler(Exception)
