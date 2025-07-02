@@ -6,13 +6,15 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    """Application configuration loaded from environment variables."""
+
     # Azure AutoML settings - using environment variables
-    azure_tenant_id: str
-    azure_client_id: str
-    azure_client_secret: str
-    azure_subscription_id: str
-    azure_ml_workspace: str
-    azure_ml_resource_group: str
+    azure_tenant_id: str | None = None
+    azure_client_id: str | None = None
+    azure_client_secret: str | None = None
+    azure_subscription_id: str | None = None
+    azure_ml_workspace: str | None = None
+    azure_ml_resource_group: str | None = None
 
     # Azure SQL Database settings
     sql_server: str = "automldb.whatever.microsoft"
@@ -24,10 +26,24 @@ class Settings(BaseSettings):
     sql_password: str = ""
 
     # JWT settings
-    jwt_secret: str
+    jwt_secret: str | None = None
 
     # Azure credential for managed identity
     _azure_credential: DefaultAzureCredential = DefaultAzureCredential()
+
+    def validate_required(self) -> None:
+        required = [
+            "azure_tenant_id",
+            "azure_client_id",
+            "azure_client_secret",
+            "azure_subscription_id",
+            "azure_ml_workspace",
+            "azure_ml_resource_group",
+            "jwt_secret",
+        ]
+        missing = [r for r in required if not getattr(self, r)]
+        if missing:
+            raise RuntimeError(f"Missing required settings: {', '.join(missing)}")
 
     @property
     def database_url(self) -> str:
@@ -51,3 +67,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+settings.validate_required()
