@@ -67,6 +67,32 @@ The following routes are implemented by `automlapi.routes`:
 
 WebSocket endpoints are available for run status and endpoint traffic streaming. See the source under `src/automlapi/routes` for details.
 
+## Setting up Azure RBAC passthrough
+
+The route under `/rbac/assignments` lists role assignments by exchanging the caller's
+Azure AD token for a token targeted at the Azure Management API. To enable this
+flow you need to configure an app registration and grant the appropriate
+permissions:
+
+1. **Create an app registration** for the FastAPI service in Microsoft Entra ID
+   and mark it as a *web* application. Note the client ID and tenant ID and add a
+   client secret.
+2. Under **Expose an API** add an Application ID URI, e.g. `api://<client-id>`,
+   and publish a scope named `access_as_user`.
+3. Under **API permissions** add *Azure Service Management* → `user_impersonation`
+   (delegated) and grant admin consent so the app can perform the on-behalf-of
+   exchange.
+4. Assign the required RBAC roles (for example `User Access Administrator`) to
+   the app registration at the subscription or resource group level so that ARM
+   calls can succeed.
+5. Provide the `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET` and
+   `AZURE_SUBSCRIPTION_ID` environment variables when running the API.
+
+Once configured, clients obtain an access token for `api://<client-id>` and call
+the `/rbac/assignments` endpoint with `Authorization: Bearer <token>`. The API
+validates the token, exchanges it for an ARM token and lists role assignments for
+the configured subscription.
+
 ## Testing
 
 Run unit tests with `uv run pytest`:
