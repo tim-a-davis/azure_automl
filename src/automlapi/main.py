@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import uvicorn
 
-from .routes import datasets, experiments, runs, models, endpoints
+from .routes import datasets, experiments, runs, models, endpoints, users
 from .config import settings
 
 app = FastAPI()
@@ -35,11 +35,15 @@ app.include_router(experiments.router)
 app.include_router(runs.router)
 app.include_router(models.router)
 app.include_router(endpoints.router)
+app.include_router(users.router)
 
 scheduler = AsyncIOScheduler()
 
 @app.on_event("startup")
 async def startup_event():
+    from .tasks.background import collect_endpoint_metrics
+
+    scheduler.add_job(collect_endpoint_metrics, "interval", minutes=5)
     scheduler.start()
 
 if __name__ == "__main__":

@@ -56,6 +56,8 @@ The following routes are implemented by `automlapi.routes`:
 - `GET  /runs` – list runs for the workspace.
 - `GET  /models` – list registered models.
 - `GET  /endpoints` – list deployment endpoints.
+- `POST /users` – create a user record.
+- `GET  /users` – list users.
 
 WebSocket endpoints are available for run status and endpoint traffic streaming. See the source under `src/automlapi/routes` for details.
 
