@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     sql_database: str = "automl"
     sql_port: int = 1433
 
-    # For local development only (optional)
+    # Legacy SQL authentication (for local development only)
     sql_username: str = ""
     sql_password: str = ""
 
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        """Build database URL for Azure SQL Database with managed identity"""
+        """Build database URL for Azure SQL Database using Azure AD credentials."""
         driver = "ODBC Driver 18 for SQL Server"
 
         if (
@@ -56,10 +56,20 @@ class Settings(BaseSettings):
             and self.sql_password
         ):
             # Local development with SQL authentication
-            return f"mssql+pyodbc://{self.sql_username}:{quote_plus(self.sql_password)}@{self.sql_server}:{self.sql_port}/{self.sql_database}?driver={quote_plus(driver)}&Encrypt=yes&TrustServerCertificate=no"
+            return (
+                f"mssql+pyodbc://{self.sql_username}:{quote_plus(self.sql_password)}"
+                f"@{self.sql_server}:{self.sql_port}/{self.sql_database}?driver={quote_plus(driver)}"
+                "&Encrypt=yes&TrustServerCertificate=no"
+            )
 
-        # Azure deployment with managed identity (no password needed)
-        return f"mssql+pyodbc://@{self.sql_server}:{self.sql_port}/{self.sql_database}?driver={quote_plus(driver)}&Authentication=ActiveDirectoryDefault&Encrypt=yes&TrustServerCertificate=no"
+        # Azure AD service principal authentication
+        return (
+            f"mssql+pyodbc://{self.azure_client_id}:{quote_plus(self.azure_client_secret)}"
+            f"@{self.sql_server}:{self.sql_port}/{self.sql_database}?driver={quote_plus(driver)}"
+            "&Encrypt=yes&TrustServerCertificate=no"
+            "&Authentication=ActiveDirectoryServicePrincipal"
+            f"&Authority Id={self.azure_tenant_id}"
+        )
 
     class Config:
         env_file = ".env"
