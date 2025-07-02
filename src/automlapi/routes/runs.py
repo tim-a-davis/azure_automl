@@ -1,14 +1,16 @@
+"""API routes for working with experiment runs."""
+
 from fastapi import APIRouter, Depends, WebSocket, HTTPException, Path
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..schemas.run import Run
-from ..services.automl import AzureAutoMLService
+from ..utils import model_to_schema, models_to_schema
+
 from ..db import get_db
 from ..db.models import Run as RunModel
 
 router = APIRouter()
-service = AzureAutoMLService()
 
 
 @router.get(
@@ -25,7 +27,7 @@ async def list_runs(
     Returns all run records that exist in the database for the current tenant.
     """
     records = db.query(RunModel).all()
-    return [Run(**r.__dict__) for r in records]
+    return models_to_schema(records, Run)
 
 
 @router.get(
@@ -45,7 +47,7 @@ async def get_run(
     record = db.get(RunModel, run_id)
     if not record:
         raise HTTPException(status_code=404, detail="Run not found")
-    return Run(**record.__dict__)
+    return model_to_schema(record, Run)
 
 
 @router.delete(
@@ -92,7 +94,7 @@ async def update_run(
         setattr(record, field, value)
     db.commit()
     db.refresh(record)
-    return Run(**record.__dict__)
+    return model_to_schema(record, Run)
 
 
 @router.websocket("/ws/runs/{run_id}/status", name="ws_run_status")

@@ -1,14 +1,15 @@
+"""API routes for managing deployment endpoints."""
+
 from fastapi import APIRouter, Depends, WebSocket, HTTPException, Path
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..schemas.endpoint import Endpoint
-from ..services.automl import AzureAutoMLService
+from ..utils import model_to_schema, models_to_schema
 from ..db import get_db
 from ..db.models import Endpoint as EndpointModel
 
 router = APIRouter()
-service = AzureAutoMLService()
 
 
 @router.post(
@@ -29,7 +30,7 @@ async def create_endpoint(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return Endpoint(**record.__dict__)
+    return model_to_schema(record, Endpoint)
 
 
 @router.get(
@@ -46,7 +47,7 @@ async def list_endpoints(
     Returns all endpoint records stored in the database.
     """
     records = db.query(EndpointModel).all()
-    return [Endpoint(**r.__dict__) for r in records]
+    return models_to_schema(records, Endpoint)
 
 
 @router.get(
@@ -66,7 +67,7 @@ async def get_endpoint(
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    return Endpoint(**record.__dict__)
+    return model_to_schema(record, Endpoint)
 
 
 @router.delete(
@@ -113,7 +114,7 @@ async def update_endpoint(
         setattr(record, field, value)
     db.commit()
     db.refresh(record)
-    return Endpoint(**record.__dict__)
+    return model_to_schema(record, Endpoint)
 
 
 @router.websocket("/ws/endpoints/{endpoint_id}/traffic", name="ws_endpoint_traffic")

@@ -1,3 +1,5 @@
+"""API routes for managing users and roles."""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 

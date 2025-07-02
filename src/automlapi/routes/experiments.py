@@ -1,7 +1,10 @@
+"""API routes for running AutoML experiments."""
+
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
 from ..services.automl import AzureAutoMLService
+from ..utils import model_to_schema, models_to_schema
 from ..schemas.experiment import Experiment
 from ..schemas.run import Run
 from ..auth import get_current_user
@@ -9,7 +12,11 @@ from ..db import get_db
 from ..db.models import Experiment as ExperimentModel, Run as RunModel
 
 router = APIRouter()
-service = AzureAutoMLService()
+
+
+def get_service() -> AzureAutoMLService:
+    """Provide a fresh service instance for each request."""
+    return AzureAutoMLService()
 
 @router.post(
     "/experiments",
@@ -20,6 +27,7 @@ async def start_experiment(
     exp: Experiment,
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
+    service: AzureAutoMLService = Depends(get_service),
 ) -> Run:
     """Start a new AutoML experiment.
 
@@ -61,7 +69,7 @@ async def list_experiments(
     Returns all experiments that have been recorded in the database.
     """
     records = db.query(ExperimentModel).all()
-    return [Experiment(**r.__dict__) for r in records]
+    return models_to_schema(records, Experiment)
 
 
 @router.get(
@@ -81,7 +89,7 @@ async def get_experiment(
     record = db.get(ExperimentModel, experiment_id)
     if not record:
         raise HTTPException(status_code=404, detail="Experiment not found")
-    return Experiment(**record.__dict__)
+    return model_to_schema(record, Experiment)
 
 
 @router.delete(
@@ -128,4 +136,4 @@ async def update_experiment(
         setattr(record, field, value)
     db.commit()
     db.refresh(record)
-    return Experiment(**record.__dict__)
+    return model_to_schema(record, Experiment)

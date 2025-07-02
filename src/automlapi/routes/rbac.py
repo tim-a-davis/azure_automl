@@ -1,3 +1,5 @@
+"""Routes handling RBAC token verification and Azure role assignments."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
