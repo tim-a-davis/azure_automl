@@ -37,7 +37,13 @@ To run the API you will need access to several Azure resources and some local to
    - `AZURE_SUBSCRIPTION_ID`, `AZURE_ML_WORKSPACE`, `AZURE_ML_RESOURCE_GROUP`
    - `JWT_SECRET`
 
-3. Launch the API server:
+3. Initialize the database tables:
+
+   ```bash
+   uv run python scripts/create_tables.py
+   ```
+
+4. Launch the API server:
 
    ```bash
    uv run python -m automlapi.runserver
