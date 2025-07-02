@@ -3,7 +3,7 @@ from typing import Generator
 
 from azure.identity import DefaultAzureCredential
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import QueuePool
 
