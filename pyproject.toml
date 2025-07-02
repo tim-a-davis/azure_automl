@@ -19,6 +19,7 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sqlalchemy>=2.0.41",
     "uvicorn>=0.35.0",
+    "pandas>=2.3.0",
 ]
 
 [build-system]
@@ -28,3 +29,12 @@ build-backend = "hatchling.build"
 
 [project.scripts]
 runserver = "automlapi.runserver:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/automlapi"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=8.4.1",
+]
