@@ -1,3 +1,5 @@
+"""API routes for managing datasets."""
+
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path
 from sqlalchemy.orm import Session
 
@@ -6,9 +8,14 @@ from ..db import get_db
 from ..db.models import Dataset as DatasetModel
 from ..schemas.dataset import Dataset
 from ..services.automl import AzureAutoMLService
+from ..utils import model_to_schema, models_to_schema
 
 router = APIRouter()
-service = AzureAutoMLService()
+
+
+def get_service() -> AzureAutoMLService:
+    """Provide a fresh service instance for each request."""
+    return AzureAutoMLService()
 
 
 @router.post(
@@ -20,6 +27,7 @@ async def create_dataset(
     file: UploadFile = File(..., description="Dataset file to upload"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
+    service: AzureAutoMLService = Depends(get_service),
 ) -> Dataset:
     """Upload a dataset file.
 
@@ -59,7 +67,7 @@ async def list_datasets(
     Returns all dataset records stored in the database for the current tenant.
     """
     records = db.query(DatasetModel).all()
-    return [Dataset(**r.__dict__) for r in records]
+    return models_to_schema(records, Dataset)
 
 
 @router.get(
@@ -79,7 +87,7 @@ async def get_dataset(
     record = db.get(DatasetModel, dataset_id)
     if not record:
         raise HTTPException(status_code=404, detail="Dataset not found")
-    return Dataset(**record.__dict__)
+    return model_to_schema(record, Dataset)
 
 
 @router.delete(
@@ -126,4 +134,4 @@ async def update_dataset(
         setattr(record, field, value)
     db.commit()
     db.refresh(record)
-    return Dataset(**record.__dict__)
+    return model_to_schema(record, Dataset)

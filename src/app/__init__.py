@@ -1,3 +1,5 @@
+"""Compatibility wrapper exposing ``automlapi`` under the ``app`` namespace."""
+
 import sys
 import automlapi
 

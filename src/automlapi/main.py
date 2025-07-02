@@ -1,3 +1,5 @@
+"""FastAPI application setup and entry point."""
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,11 +40,13 @@ mcp.mount()
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
+    """Return a generic 500 response for unhandled exceptions."""
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return validation errors in a standard format."""
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 app.add_middleware(
@@ -55,6 +59,7 @@ app.add_middleware(
 
 @app.middleware("http")
 async def add_tenant(request: Request, call_next):
+    """Extract tenant ID from JWT token and attach it to the request state."""
     token = request.headers.get("authorization", "").replace("Bearer ", "")
     request.state.tenant_id = None
     if token:

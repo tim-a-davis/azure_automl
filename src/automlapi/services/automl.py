@@ -45,14 +45,14 @@ class AzureAutoMLService:
 
     def upload_dataset(self, filename: str, data: bytes) -> DatasetSchema:
         """Upload a dataset to the workspace and return its registered metadata."""
-        tmp_dir = tempfile.mkdtemp()
-        file_path = os.path.join(tmp_dir, filename)
-        with open(file_path, "wb") as f:
-            f.write(data)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            file_path = os.path.join(tmp_dir, filename)
+            with open(file_path, "wb") as f:
+                f.write(data)
 
-        dataset = Data(name=filename, path=file_path, type="uri_file")
-        created = self.client.data.create_or_update(dataset)
-        info: Dict[str, Any] = getattr(created, "_to_dict", lambda: {})()
+            dataset = Data(name=filename, path=file_path, type="uri_file")
+            created = self.client.data.create_or_update(dataset)
+            info: Dict[str, Any] = getattr(created, "_to_dict", lambda: {})()
 
         return DatasetSchema(
             id=getattr(created, "id", uuid4()),

@@ -1,14 +1,15 @@
+"""API routes for managing model records."""
+
 from fastapi import APIRouter, Depends, HTTPException, Path
 from sqlalchemy.orm import Session
 
-from ..services.automl import AzureAutoMLService
 from ..schemas.model import Model
+from ..utils import model_to_schema, models_to_schema
 from ..auth import get_current_user
 from ..db import get_db
 from ..db.models import Model as ModelModel
 
 router = APIRouter()
-service = AzureAutoMLService()
 
 @router.post(
     "/models",
@@ -28,7 +29,7 @@ async def create_model(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return Model(**record.__dict__)
+    return model_to_schema(record, Model)
 
 
 @router.get(
@@ -45,7 +46,7 @@ async def list_models(
     Returns metadata for all stored model records.
     """
     records = db.query(ModelModel).all()
-    return [Model(**r.__dict__) for r in records]
+    return models_to_schema(records, Model)
 
 
 @router.get(
@@ -65,7 +66,7 @@ async def get_model(
     record = db.get(ModelModel, model_id)
     if not record:
         raise HTTPException(status_code=404, detail="Model not found")
-    return Model(**record.__dict__)
+    return model_to_schema(record, Model)
 
 
 @router.delete(
@@ -112,4 +113,4 @@ async def update_model(
         setattr(record, field, value)
     db.commit()
     db.refresh(record)
-    return Model(**record.__dict__)
+    return model_to_schema(record, Model)
