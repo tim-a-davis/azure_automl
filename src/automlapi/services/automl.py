@@ -1,8 +1,9 @@
 from uuid import uuid4
 from typing import List, Any, Dict
 from azure.identity import ClientSecretCredential
-from azure.ai.ml import MLClient, command
+from azure.ai.ml import MLClient, command, automl, Input
 from azure.ai.ml.entities import Data, OnlineDeployment
+from azure.ai.ml.constants import AssetTypes
 import tempfile
 import os
 
@@ -62,8 +63,33 @@ class AzureAutoMLService:
         )
 
     def start_experiment(self, config: ExperimentSchema) -> RunSchema:
-        """Launch an experiment/job in Azure ML and return the run information."""
-        job = command(name=f"job-{uuid4()}", command="echo experiment")
+        """Launch an AutoML job using the SDK and return the run information."""
+        data_input = None
+        if config.training_data:
+            data_input = Input(type=AssetTypes.MLTABLE, path=config.training_data)
+
+        if config.task_type == "classification":
+            job = automl.classification(
+                compute=config.compute,
+                experiment_name="automl-experiment",
+                training_data=data_input,
+                target_column_name=config.target_column_name,
+                primary_metric=config.primary_metric or "accuracy",
+                n_cross_validations=config.n_cross_validations or 5,
+            )
+        elif config.task_type == "regression":
+            job = automl.regression(
+                compute=config.compute,
+                experiment_name="automl-experiment",
+                training_data=data_input,
+                target_column_name=config.target_column_name,
+                primary_metric=config.primary_metric or "r2_score",
+                n_cross_validations=config.n_cross_validations or 5,
+            )
+        else:
+            # Fallback to a simple command job
+            job = command(name=f"job-{uuid4()}", command="echo experiment")
+
         submitted = self.client.jobs.create_or_update(job)
 
         ctx = getattr(submitted, "creation_context", None)
