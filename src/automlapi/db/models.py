@@ -11,7 +11,7 @@ from sqlalchemy import (
     Index,
 )
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
 Base = declarative_base()
