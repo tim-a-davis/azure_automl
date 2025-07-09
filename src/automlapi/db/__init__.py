@@ -3,8 +3,7 @@ from typing import Generator
 
 from azure.identity import DefaultAzureCredential
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool
 
 from ..config import settings
@@ -29,23 +28,32 @@ class DatabaseManager:
         if self._engine is None:
             database_url = settings.database_url
 
-            # Configure engine for Azure SQL Database
-            connect_args = {
-                "autocommit": False,
-                "timeout": 30,
-                "login_timeout": 30,
-            }
+            # Configure engine based on database type
+            if database_url.startswith("sqlite"):
+                # SQLite for local testing
+                self._engine = create_engine(
+                    database_url,
+                    echo=False,
+                )
+                logger.info("Using SQLite database for local testing")
+            else:
+                # Azure SQL Database configuration
+                connect_args = {
+                    "autocommit": False,
+                    "timeout": 30,
+                    "login_timeout": 30,
+                }
 
-            self._engine = create_engine(
-                database_url,
-                poolclass=QueuePool,
-                pool_size=5,
-                max_overflow=10,
-                pool_pre_ping=True,
-                pool_recycle=3600,  # 1 hour for Azure SQL
-                echo=False,
-                connect_args=connect_args,
-            )
+                self._engine = create_engine(
+                    database_url,
+                    poolclass=QueuePool,
+                    pool_size=5,
+                    max_overflow=10,
+                    pool_pre_ping=True,
+                    pool_recycle=3600,  # 1 hour for Azure SQL
+                    echo=False,
+                    connect_args=connect_args,
+                )
 
             # Test connection
             try:
@@ -96,6 +104,9 @@ def get_db() -> Generator[Session, None, None]:
 def init_db():
     """Initialize database tables"""
     try:
+        # Import models to register them with Base
+        from . import models  # noqa: F401
+
         engine = db_manager.get_engine()
         Base.metadata.create_all(bind=engine)
         logger.info("Database tables initialized successfully")

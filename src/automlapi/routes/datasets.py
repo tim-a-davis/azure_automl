@@ -1,6 +1,6 @@
 """API routes for managing datasets."""
 
-from fastapi import APIRouter, Depends, File, UploadFile, HTTPException, Path
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -25,6 +25,8 @@ def get_service() -> AzureAutoMLService:
 )
 async def create_dataset(
     file: UploadFile = File(..., description="Dataset file to upload"),
+    name: str = Form(..., description="Name for the dataset"),
+    description: str = Form(None, description="Optional description for the dataset"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
@@ -36,7 +38,7 @@ async def create_dataset(
     """
     data = await file.read()
     try:
-        dataset = service.upload_dataset(file.filename, data)
+        dataset = service.upload_dataset(name, data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     record = DatasetModel(

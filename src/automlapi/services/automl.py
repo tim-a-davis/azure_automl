@@ -1,18 +1,20 @@
-from uuid import uuid4
-from typing import List, Any, Dict
-from azure.identity import ClientSecretCredential
-from azure.ai.ml import MLClient, command, automl, Input
-from azure.ai.ml.entities import Data, OnlineDeployment
-from azure.ai.ml.constants import AssetTypes
-import tempfile
 import os
+import tempfile
+from typing import Any, Dict, List
+from uuid import uuid4
+
+from azure.ai.ml import Input, MLClient, automl, command
+from azure.ai.ml.constants import AssetTypes
+from azure.ai.ml.entities import Data, OnlineDeployment
+from azure.identity import ClientSecretCredential
 
 from ..config import settings
 from ..schemas.dataset import Dataset as DatasetSchema
-from ..schemas.experiment import Experiment as ExperimentSchema
-from ..schemas.run import Run as RunSchema
-from ..schemas.model import Model as ModelSchema
 from ..schemas.endpoint import Endpoint as EndpointSchema
+from ..schemas.experiment import Experiment as ExperimentSchema
+from ..schemas.model import Model as ModelSchema
+from ..schemas.run import Run as RunSchema
+
 
 class AzureAutoMLService:
     def __init__(self):
@@ -24,7 +26,7 @@ class AzureAutoMLService:
         self.client = MLClient(
             credential=cred,
             subscription_id=settings.azure_subscription_id,
-            resource_group=settings.azure_ml_resource_group,
+            resource_group_name=settings.azure_ml_resource_group,
             workspace_name=settings.azure_ml_workspace,
         )
 
@@ -43,21 +45,23 @@ class AzureAutoMLService:
     def list_endpoints(self) -> List[EndpointSchema]:
         return [EndpointSchema(**e) for e in self.client.online_endpoints.list()]  # type: ignore
 
-    def upload_dataset(self, filename: str, data: bytes) -> DatasetSchema:
+    def upload_dataset(self, dataset_name: str, data: bytes) -> DatasetSchema:
         """Upload a dataset to the workspace and return its registered metadata."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            file_path = os.path.join(tmp_dir, filename)
+            # Use a clean filename for the temporary file
+            file_path = os.path.join(tmp_dir, "dataset.csv")
             with open(file_path, "wb") as f:
                 f.write(data)
 
-            dataset = Data(name=filename, path=file_path, type="uri_file")
+            # Use the provided dataset_name for the Azure ML dataset
+            dataset = Data(name=dataset_name, path=file_path, type="uri_file")
             created = self.client.data.create_or_update(dataset)
             info: Dict[str, Any] = getattr(created, "_to_dict", lambda: {})()
 
         return DatasetSchema(
-            id=getattr(created, "id", uuid4()),
+            id=str(uuid4()),  # Generate a new UUID for our internal tracking
             tenant_id="",
-            name=info.get("name", filename),
+            name=info.get("name", dataset_name),
             version=info.get("version"),
             storage_uri=info.get("path", file_path),
         )

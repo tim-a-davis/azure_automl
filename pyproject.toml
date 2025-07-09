@@ -12,7 +12,6 @@ dependencies = [
     "azure-ai-ml>=1.27.1",
     "azure-identity>=1.23.0",
     "fastapi>=0.115.14",
-    "PyJWT>=2.8.0",
     "requests>=2.31.0",
     "azure-mgmt-authorization>=4.0.0",
     "pyodbc>=5.0.1",
@@ -23,6 +22,7 @@ dependencies = [
     "uvicorn>=0.35.0",
     "pandas>=2.3.0",
     "fastapi-mcp>=0.3.4",
+    "pyjwt>=2.10.1",
 ]
 
 [build-system]
@@ -33,8 +33,6 @@ build-backend = "hatchling.build"
 [project.scripts]
 runserver = "automlapi.runserver:main"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/automlapi"]
 
 [dependency-groups]
 dev = [

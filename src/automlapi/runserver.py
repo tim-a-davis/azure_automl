@@ -7,7 +7,7 @@ from automlapi.main import app
 
 def main():
     """Launch the FastAPI app using Uvicorn."""
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8005)
 
 
 if __name__ == "__main__":

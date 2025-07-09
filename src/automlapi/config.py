@@ -1,4 +1,3 @@
-import os
 from urllib.parse import quote_plus
 
 from azure.identity import DefaultAzureCredential
@@ -17,7 +16,7 @@ class Settings(BaseSettings):
     azure_ml_resource_group: str | None = None
 
     # Azure SQL Database settings
-    sql_server: str = "automldb.whatever.microsoft"
+    sql_server: str = "automldbserver.database.windows.net"
     sql_database: str = "automl"
     sql_port: int = 1433
 
@@ -27,6 +26,9 @@ class Settings(BaseSettings):
 
     # JWT settings
     jwt_secret: str | None = None
+
+    # Environment setting
+    environment: str = "production"
 
     # Azure credential for managed identity
     _azure_credential: DefaultAzureCredential = DefaultAzureCredential()
@@ -48,13 +50,17 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         """Build database URL for Azure SQL Database using Azure AD credentials."""
+
+        # For local testing with SQLite (no database setup needed)
+        if (
+            self.environment == "local"
+            and self.sql_server == "automldbserver.database.windows.net"
+        ):
+            return "sqlite:///./automl_local.db"
+
         driver = "ODBC Driver 18 for SQL Server"
 
-        if (
-            os.getenv("ENVIRONMENT") == "local"
-            and self.sql_username
-            and self.sql_password
-        ):
+        if self.environment == "local" and self.sql_username and self.sql_password:
             # Local development with SQL authentication
             return (
                 f"mssql+pyodbc://{self.sql_username}:{quote_plus(self.sql_password)}"
@@ -70,6 +76,17 @@ class Settings(BaseSettings):
             "&Authentication=ActiveDirectoryServicePrincipal"
             f"&Authority Id={self.azure_tenant_id}"
         )
+
+    def get_azure_credential(self) -> DefaultAzureCredential:
+        """Get Azure Default Credential for token-based authentication."""
+        return self._azure_credential
+
+    async def get_database_access_token(self) -> str:
+        """Get an access token for Azure SQL Database using DefaultAzureCredential."""
+        token = await self._azure_credential.get_token(
+            "https://database.windows.net/.default"
+        )
+        return token.token
 
     class Config:
         env_file = ".env"
