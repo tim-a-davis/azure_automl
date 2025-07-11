@@ -46,15 +46,38 @@ class AzureAutoMLService:
         return [EndpointSchema(**e) for e in self.client.online_endpoints.list()]  # type: ignore
 
     def upload_dataset(self, dataset_name: str, data: bytes) -> DatasetSchema:
-        """Upload a dataset to the workspace and return its registered metadata."""
+        """Upload a dataset to the workspace as MLTable format for AutoML compatibility."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-            # Use a clean filename for the temporary file
-            file_path = os.path.join(tmp_dir, "dataset.csv")
-            with open(file_path, "wb") as f:
+            # Create the dataset CSV file
+            csv_file_path = os.path.join(tmp_dir, "dataset.csv")
+            with open(csv_file_path, "wb") as f:
                 f.write(data)
 
-            # Use the provided dataset_name for the Azure ML dataset
-            dataset = Data(name=dataset_name, path=file_path, type="uri_file")
+            # Create MLTable YAML file for AutoML compatibility
+            # This tells Azure ML how to read the CSV file as tabular data
+            mltable_content = """$schema: https://azuremlschemas.azureedge.net/latest/MLTable.schema.json
+
+paths:
+  - file: ./dataset.csv
+transformations:
+  - read_delimited:
+        delimiter: ','
+        encoding: 'utf8'
+        header: all_files_same_headers
+"""
+
+            mltable_path = os.path.join(tmp_dir, "MLTable")
+            with open(mltable_path, "w") as f:
+                f.write(mltable_content)
+
+            # Upload the entire directory containing both CSV and MLTable files
+            # This creates an mltable type asset that AutoML can consume
+            dataset = Data(
+                name=dataset_name,
+                path=tmp_dir,
+                type=AssetTypes.MLTABLE,
+                description=f"MLTable dataset for {dataset_name} - AutoML compatible",
+            )
             created = self.client.data.create_or_update(dataset)
             info: Dict[str, Any] = getattr(created, "_to_dict", lambda: {})()
 
@@ -63,36 +86,57 @@ class AzureAutoMLService:
             tenant_id="",
             name=info.get("name", dataset_name),
             version=info.get("version"),
-            storage_uri=info.get("path", file_path),
+            storage_uri=info.get("path", tmp_dir),
         )
 
     def start_experiment(self, config: ExperimentSchema) -> RunSchema:
-        """Launch an AutoML job using the SDK and return the run information."""
+        """Launch an AutoML job using serverless compute and return the run information."""
+        from azure.ai.ml.entities import ResourceConfiguration
+
         data_input = None
         if config.training_data:
             data_input = Input(type=AssetTypes.MLTABLE, path=config.training_data)
 
         if config.task_type == "classification":
             job = automl.classification(
-                compute=config.compute,
+                # No compute specified - uses serverless compute by default
                 experiment_name="automl-experiment",
                 training_data=data_input,
                 target_column_name=config.target_column_name,
                 primary_metric=config.primary_metric or "accuracy",
                 n_cross_validations=config.n_cross_validations or 5,
             )
+            # Configure serverless compute resources (optional)
+            if hasattr(job, "resources"):
+                job.resources = ResourceConfiguration(
+                    instance_type="Standard_DS3_v2",  # Cost-effective CPU instance
+                    instance_count=1,
+                )
         elif config.task_type == "regression":
             job = automl.regression(
-                compute=config.compute,
+                # No compute specified - uses serverless compute by default
                 experiment_name="automl-experiment",
                 training_data=data_input,
                 target_column_name=config.target_column_name,
                 primary_metric=config.primary_metric or "r2_score",
                 n_cross_validations=config.n_cross_validations or 5,
             )
+            # Configure serverless compute resources (optional)
+            if hasattr(job, "resources"):
+                job.resources = ResourceConfiguration(
+                    instance_type="Standard_DS3_v2",  # Cost-effective CPU instance
+                    instance_count=1,
+                )
         else:
-            # Fallback to a simple command job
-            job = command(name=f"job-{uuid4()}", command="echo experiment")
+            # Fallback to a simple command job with serverless compute
+            job = command(
+                name=f"job-{uuid4()}",
+                command="echo experiment",
+                environment="azureml:AzureML-sklearn-1.0-ubuntu20.04-py38-cpu@latest",
+            )
+            job.resources = ResourceConfiguration(
+                instance_type="Standard_DS3_v2", instance_count=1
+            )
 
         submitted = self.client.jobs.create_or_update(job)
 
@@ -100,7 +144,9 @@ class AzureAutoMLService:
         queued = getattr(ctx, "created_at", None) if ctx else None
 
         return RunSchema(
-            id=getattr(submitted, "id", uuid4()),
+            id=str(
+                uuid4()
+            ),  # Generate our own UUID for tracking since Azure ML IDs aren't UUID format
             tenant_id=config.tenant_id,
             job_name=getattr(submitted, "name", None),
             queued_at=queued,
