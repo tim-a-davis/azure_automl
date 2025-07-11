@@ -4,12 +4,14 @@ from contextlib import asynccontextmanager
 
 import uvicorn
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi_mcp.server import FastApiMCP
+from fastapi_mcp.types import AuthConfig
 
+from .auth import get_current_user
 from .config import settings
 from .routes import auth, datasets, endpoints, experiments, models, rbac, runs, users
 
@@ -35,6 +37,12 @@ mcp = FastApiMCP(
     app,
     describe_all_responses=True,
     describe_full_response_schema=True,
+    auth_config=AuthConfig(
+        dependencies=[Depends(get_current_user)],
+        issuer="http://localhost:8005",  # Our app's base URL
+        audience="automl-api",
+        default_scope="openid profile email automl:read automl:write",
+    ),
 )
 mcp.mount()
 

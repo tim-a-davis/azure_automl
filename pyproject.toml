@@ -23,6 +23,8 @@ dependencies = [
     "pandas>=2.3.0",
     "fastapi-mcp>=0.3.4",
     "pyjwt>=2.10.1",
+    "mcp>=1.10.1",
+    "httpx>=0.28.1",
 ]
 
 [build-system]
