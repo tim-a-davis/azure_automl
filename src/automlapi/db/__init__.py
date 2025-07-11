@@ -19,9 +19,15 @@ class DatabaseManager:
     """Manages Azure SQL Database connections with Azure Default Credential"""
 
     def __init__(self):
-        self.credential = DefaultAzureCredential()
+        self.credential = None  # Lazy initialization
         self._engine = None
         self._session_local = None
+
+    def get_credential(self):
+        """Get Azure credential with lazy initialization"""
+        if self.credential is None:
+            self.credential = DefaultAzureCredential()
+        return self.credential
 
     def get_engine(self):
         """Get SQLAlchemy engine with Azure Default Credential authentication"""
@@ -59,14 +65,20 @@ class DatabaseManager:
             try:
                 with self._engine.connect() as conn:
                     conn.execute(text("SELECT 1 as test"))
-                    logger.info(
-                        f"Database connection established successfully to {settings.sql_server}"
-                    )
+                    if database_url.startswith("sqlite"):
+                        logger.info(
+                            "SQLite database connection established successfully"
+                        )
+                    else:
+                        logger.info(
+                            f"Database connection established successfully to {settings.sql_server}"
+                        )
             except Exception as e:
                 logger.error(f"Database connection failed: {e}")
-                logger.error(
-                    f"Connection string (masked): mssql+pyodbc://@{settings.sql_server}:1433/{settings.sql_database}"
-                )
+                if not database_url.startswith("sqlite"):
+                    logger.error(
+                        f"Connection string (masked): mssql+pyodbc://@{settings.sql_server}:1433/{settings.sql_database}"
+                    )
                 raise
 
         return self._engine

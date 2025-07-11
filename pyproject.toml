@@ -38,6 +38,7 @@ runserver = "automlapi.runserver:main"
 
 [dependency-groups]
 dev = [
+    "alembic>=1.16.4",
     "httpx>=0.28.1",
     "pytest>=8.4.1",
 ]

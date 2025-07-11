@@ -89,6 +89,20 @@ transformations:
             storage_uri=info.get("path", tmp_dir),
         )
 
+    def _configure_job_limits(self, job, config: ExperimentSchema):
+        """Configure limits for AutoML jobs using the set_limits method."""
+        if hasattr(job, "set_limits"):
+            job.set_limits(
+                enable_early_termination=config.enable_early_termination,
+                exit_score=config.exit_score,
+                max_concurrent_trials=config.max_concurrent_trials,
+                max_cores_per_trial=config.max_cores_per_trial,
+                max_nodes=config.max_nodes,
+                max_trials=config.max_trials,
+                timeout_minutes=config.timeout_minutes,
+                trial_timeout_minutes=config.trial_timeout_minutes,
+            )
+
     def start_experiment(self, config: ExperimentSchema) -> RunSchema:
         """Launch an AutoML job using serverless compute and return the run information."""
         from azure.ai.ml.entities import ResourceConfiguration
@@ -106,6 +120,9 @@ transformations:
                 primary_metric=config.primary_metric or "accuracy",
                 n_cross_validations=config.n_cross_validations or 5,
             )
+            # Configure limits for the job
+            self._configure_job_limits(job, config)
+
             # Configure serverless compute resources (optional)
             if hasattr(job, "resources"):
                 job.resources = ResourceConfiguration(
@@ -121,6 +138,28 @@ transformations:
                 primary_metric=config.primary_metric or "r2_score",
                 n_cross_validations=config.n_cross_validations or 5,
             )
+            # Configure limits for the job
+            self._configure_job_limits(job, config)
+
+            # Configure serverless compute resources (optional)
+            if hasattr(job, "resources"):
+                job.resources = ResourceConfiguration(
+                    instance_type="Standard_DS3_v2",  # Cost-effective CPU instance
+                    instance_count=1,
+                )
+        elif config.task_type == "forecasting":
+            job = automl.forecasting(
+                # No compute specified - uses serverless compute by default
+                experiment_name="automl-experiment",
+                training_data=data_input,
+                target_column_name=config.target_column_name,
+                primary_metric=config.primary_metric
+                or "normalized_root_mean_squared_error",
+                n_cross_validations=config.n_cross_validations or 5,
+            )
+            # Configure limits for the job
+            self._configure_job_limits(job, config)
+
             # Configure serverless compute resources (optional)
             if hasattr(job, "resources"):
                 job.resources = ResourceConfiguration(

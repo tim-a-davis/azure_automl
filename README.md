@@ -68,6 +68,23 @@ To run the API you will need access to several Azure resources and some local to
 - A secret used to sign JSON Web Tokens (`JWT_SECRET`).
 - [fastapi-mcp](https://pypi.org/project/fastapi-mcp/) to expose the API as an MCP server.
 
+## Prerequisites
+
+### macOS: Install ODBC Driver for SQL Server
+
+If you're connecting to Azure SQL Database on macOS, you'll need to install the Microsoft ODBC Driver 18 for SQL Server:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+brew tap microsoft/mssql-release https://github.com/Microsoft/homebrew-mssql-release
+brew update
+HOMEBREW_ACCEPT_EULA=Y brew install msodbcsql18 mssql-tools18
+```
+
+### Other Operating Systems
+
+For Windows and Linux installation instructions, see the [Microsoft documentation](https://docs.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server).
+
 ## Quick start
 
 1. Install dependencies using [uv](https://github.com/astral-sh/uv):

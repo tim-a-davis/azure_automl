@@ -96,6 +96,18 @@ class Experiment(TimestampMixin, Base):
     task_type = Column(String(100))
     primary_metric = Column(String(100))
 
+    # AutoML limit settings
+    enable_early_termination = Column(
+        String(10)
+    )  # 'true'/'false' for cross-database compatibility
+    exit_score = Column(Float)
+    max_concurrent_trials = Column(Integer, default=20)
+    max_cores_per_trial = Column(Integer)
+    max_nodes = Column(Integer, default=10)
+    max_trials = Column(Integer, default=300)
+    timeout_minutes = Column(Integer)
+    trial_timeout_minutes = Column(Integer, default=15)
+
 
 class Run(TimestampMixin, Base):
     __tablename__ = "runs"

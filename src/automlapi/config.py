@@ -30,10 +30,17 @@ class Settings(BaseSettings):
     # Environment setting
     environment: str = "production"
 
-    # Azure credential for managed identity
-    _azure_credential: DefaultAzureCredential = DefaultAzureCredential()
+    # Azure credential for managed identity (lazy initialization)
+    _azure_credential: DefaultAzureCredential | None = None
 
     def validate_required(self) -> None:
+        # Skip Azure credential validation for local environment
+        if self.environment == "local":
+            # Only validate JWT secret for local testing
+            if not self.jwt_secret:
+                raise RuntimeError("Missing required setting: jwt_secret")
+            return
+
         required = [
             "azure_tenant_id",
             "azure_client_id",
@@ -52,10 +59,7 @@ class Settings(BaseSettings):
         """Build database URL for Azure SQL Database using Azure AD credentials."""
 
         # For local testing with SQLite (no database setup needed)
-        if (
-            self.environment == "local"
-            and self.sql_server == "automldbserver.database.windows.net"
-        ):
+        if self.environment == "local":
             return "sqlite:///./automl_local.db"
 
         driver = "ODBC Driver 18 for SQL Server"
@@ -90,10 +94,7 @@ class Settings(BaseSettings):
         but direct service principal authentication doesn't work.
         """
         # For local testing with SQLite (no database setup needed)
-        if (
-            self.environment == "local"
-            and self.sql_server == "automldbserver.database.windows.net"
-        ):
+        if self.environment == "local":
             return "sqlite:///./automl_local.db"
 
         # Token-based authentication - requires getting token separately
@@ -110,13 +111,14 @@ class Settings(BaseSettings):
 
     def get_azure_credential(self) -> DefaultAzureCredential:
         """Get Azure Default Credential for token-based authentication."""
+        if self._azure_credential is None:
+            self._azure_credential = DefaultAzureCredential()
         return self._azure_credential
 
     async def get_database_access_token(self) -> str:
         """Get an access token for Azure SQL Database using DefaultAzureCredential."""
-        token = await self._azure_credential.get_token(
-            "https://database.windows.net/.default"
-        )
+        credential = self.get_azure_credential()
+        token = await credential.get_token("https://database.windows.net/.default")
         return token.token
 
     class Config:
