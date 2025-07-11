@@ -68,13 +68,44 @@ class Settings(BaseSettings):
                 "&Encrypt=yes&TrustServerCertificate=no"
             )
 
-        # Azure AD service principal authentication
+        # Azure AD Service Principal authentication using ODBC format
         return (
-            f"mssql+pyodbc://{self.azure_client_id}:{quote_plus(self.azure_client_secret)}"
-            f"@{self.sql_server}:{self.sql_port}/{self.sql_database}?driver={quote_plus(driver)}"
-            "&Encrypt=yes&TrustServerCertificate=no"
-            "&Authentication=ActiveDirectoryServicePrincipal"
-            f"&Authority Id={self.azure_tenant_id}"
+            f"mssql+pyodbc:///?odbc_connect="
+            f"Driver={{ODBC Driver 18 for SQL Server}};"
+            f"Server=tcp:{self.sql_server},{self.sql_port};"
+            f"Database={self.sql_database};"
+            f"Uid={self.azure_client_id};"
+            f"Pwd={quote_plus(self.azure_client_secret)};"
+            f"Encrypt=yes;"
+            f"TrustServerCertificate=no;"
+            f"Connection Timeout=30;"
+            f"Authentication=ActiveDirectoryServicePrincipal"
+        )
+
+    @property
+    def database_url_with_token(self) -> str:
+        """Build database URL for Azure SQL Database using access token authentication.
+
+        Use this when the service principal is part of a group that has admin access,
+        but direct service principal authentication doesn't work.
+        """
+        # For local testing with SQLite (no database setup needed)
+        if (
+            self.environment == "local"
+            and self.sql_server == "automldbserver.database.windows.net"
+        ):
+            return "sqlite:///./automl_local.db"
+
+        # Token-based authentication - requires getting token separately
+        return (
+            f"mssql+pyodbc:///?odbc_connect="
+            f"Driver={{ODBC Driver 18 for SQL Server}};"
+            f"Server=tcp:{self.sql_server},{self.sql_port};"
+            f"Database={self.sql_database};"
+            f"Encrypt=yes;"
+            f"TrustServerCertificate=no;"
+            f"Connection Timeout=30;"
+            f"Authentication=ActiveDirectoryAccessToken"
         )
 
     def get_azure_credential(self) -> DefaultAzureCredential:

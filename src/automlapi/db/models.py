@@ -11,14 +11,11 @@ from sqlalchemy import (
     String,
     TypeDecorator,
 )
-from sqlalchemy import (
-    String as SQLString,
-)
+from sqlalchemy import String as SQLString
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
-from sqlalchemy.orm import declarative_base
 from sqlalchemy.sql import func
 
-Base = declarative_base()
+from . import Base
 
 
 def default_uuid():
@@ -69,7 +66,14 @@ class TimestampMixin:
 class Dataset(TimestampMixin, Base):
     __tablename__ = "datasets"
     __table_args__ = (
-        Index("ix_dataset_tenant_name", "tenant_id", "name", unique=True),
+        Index("ix_dataset_tenant_name", "tenant_id", "name"),
+        Index(
+            "ix_dataset_tenant_name_version",
+            "tenant_id",
+            "name",
+            "version",
+            unique=True,
+        ),
     )
 
     id = Column(UUID, primary_key=True, default=default_uuid)
