@@ -5,10 +5,12 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..db import get_db
-from ..db.models import User as UserModel, Role as RoleModel
-from ..schemas.user import User, Role
+from ..db.models import Role as RoleModel
+from ..db.models import User as UserModel
+from ..schemas.user import Role, User
 
 router = APIRouter()
+
 
 @router.post(
     "/users",
@@ -30,10 +32,12 @@ async def create_user(
     db.refresh(record)
     return User(**record.__dict__)
 
+
 @router.get(
     "/users",
     response_model=list[User],
     operation_id="list_users",
+    tags=["mcp"],
 )
 async def list_users(
     current=Depends(get_current_user),
@@ -45,6 +49,7 @@ async def list_users(
     """
     records = db.query(UserModel).all()
     return [User(**r.__dict__) for r in records]
+
 
 @router.post(
     "/roles",
@@ -65,4 +70,3 @@ async def create_role(
     db.commit()
     db.refresh(record)
     return Role(**record.__dict__)
-

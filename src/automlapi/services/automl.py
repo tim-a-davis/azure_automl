@@ -5,7 +5,12 @@ from uuid import uuid4
 
 from azure.ai.ml import Input, MLClient, automl, command
 from azure.ai.ml.constants import AssetTypes
-from azure.ai.ml.entities import Data, OnlineDeployment
+from azure.ai.ml.entities import (
+    Data,
+    ManagedOnlineDeployment,
+    ManagedOnlineEndpoint,
+    OnlineDeployment,
+)
 from azure.identity import ClientSecretCredential
 
 from ..config import settings
@@ -269,3 +274,215 @@ transformations:
             workspace_name=settings.azure_ml_workspace,
         )
         return {"status": "rotated"}
+
+    def create_endpoint(
+        self, endpoint_name: str, description: str = None, tags: Dict[str, str] = None
+    ) -> EndpointSchema:
+        """Create an Azure ML online endpoint."""
+        endpoint = ManagedOnlineEndpoint(
+            name=endpoint_name,
+            description=description or f"Online endpoint {endpoint_name}",
+            tags=tags or {},
+            auth_mode="key",
+        )
+
+        try:
+            created_endpoint = self.client.online_endpoints.begin_create_or_update(
+                endpoint
+            ).result()
+
+            # Convert to our schema format
+            endpoint_dict = {
+                "id": str(uuid4()),  # Generate a UUID for our internal tracking
+                "tenant_id": "",  # Will be set by the calling route
+                "name": created_endpoint.name,
+                "azure_endpoint_name": created_endpoint.name,
+                "azure_endpoint_url": getattr(created_endpoint, "scoring_uri", None),
+                "auth_mode": created_endpoint.auth_mode,
+                "provisioning_state": created_endpoint.provisioning_state,
+                "tags": created_endpoint.tags or {},
+                "description": created_endpoint.description,
+            }
+
+            return EndpointSchema(**endpoint_dict)
+        except Exception as e:
+            raise Exception(f"Failed to create endpoint: {str(e)}")
+
+    def get_endpoint(self, endpoint_name: str) -> EndpointSchema:
+        """Get an Azure ML online endpoint by name."""
+        try:
+            endpoint = self.client.online_endpoints.get(endpoint_name)
+
+            # Get deployment information
+            deployments = {}
+            try:
+                deployment_list = list(
+                    self.client.online_deployments.list(endpoint_name=endpoint_name)
+                )
+                for deployment in deployment_list:
+                    deployments[deployment.name] = {
+                        "instance_type": getattr(deployment, "instance_type", None),
+                        "instance_count": getattr(deployment, "instance_count", None),
+                        "model": getattr(deployment, "model", None),
+                        "traffic_percentage": None,  # Will be set from endpoint traffic
+                    }
+            except Exception:
+                # If we can't get deployments, continue without them
+                pass
+
+            # Get traffic allocation
+            traffic = getattr(endpoint, "traffic", {})
+            for deployment_name, percentage in traffic.items():
+                if deployment_name in deployments:
+                    deployments[deployment_name]["traffic_percentage"] = percentage
+
+            endpoint_dict = {
+                "id": str(uuid4()),  # Generate a UUID for our internal tracking
+                "tenant_id": "",  # Will be set by the calling route
+                "name": endpoint.name,
+                "azure_endpoint_name": endpoint.name,
+                "azure_endpoint_url": getattr(endpoint, "scoring_uri", None),
+                "auth_mode": endpoint.auth_mode,
+                "provisioning_state": endpoint.provisioning_state,
+                "tags": endpoint.tags or {},
+                "description": endpoint.description,
+                "deployments": deployments,
+                "traffic": traffic,
+            }
+
+            return EndpointSchema(**endpoint_dict)
+        except Exception as e:
+            raise Exception(f"Failed to get endpoint: {str(e)}")
+
+    def update_endpoint(
+        self, endpoint_name: str, description: str = None, tags: Dict[str, str] = None
+    ) -> EndpointSchema:
+        """Update an Azure ML online endpoint."""
+        try:
+            # Get the existing endpoint
+            existing_endpoint = self.client.online_endpoints.get(endpoint_name)
+
+            # Update the endpoint
+            endpoint = ManagedOnlineEndpoint(
+                name=endpoint_name,
+                description=description
+                if description is not None
+                else existing_endpoint.description,
+                tags=tags if tags is not None else existing_endpoint.tags,
+                auth_mode=existing_endpoint.auth_mode,
+            )
+
+            updated_endpoint = self.client.online_endpoints.begin_create_or_update(
+                endpoint
+            ).result()
+
+            endpoint_dict = {
+                "id": str(uuid4()),  # Generate a UUID for our internal tracking
+                "tenant_id": "",  # Will be set by the calling route
+                "name": updated_endpoint.name,
+                "azure_endpoint_name": updated_endpoint.name,
+                "azure_endpoint_url": getattr(updated_endpoint, "scoring_uri", None),
+                "auth_mode": updated_endpoint.auth_mode,
+                "provisioning_state": updated_endpoint.provisioning_state,
+                "tags": updated_endpoint.tags or {},
+                "description": updated_endpoint.description,
+            }
+
+            return EndpointSchema(**endpoint_dict)
+        except Exception as e:
+            raise Exception(f"Failed to update endpoint: {str(e)}")
+
+    def delete_endpoint(self, endpoint_name: str) -> bool:
+        """Delete an Azure ML online endpoint."""
+        try:
+            self.client.online_endpoints.begin_delete(endpoint_name).result()
+            return True
+        except Exception as e:
+            raise Exception(f"Failed to delete endpoint: {str(e)}")
+
+    def create_deployment(
+        self,
+        endpoint_name: str,
+        deployment_name: str,
+        model_name: str,
+        model_version: str = None,
+        instance_type: str = "Standard_DS3_v2",
+        instance_count: int = 1,
+        traffic_percentage: int = 0,
+    ):
+        """Create a deployment for an Azure ML online endpoint."""
+        try:
+            # Get the model
+            if model_version:
+                model = f"{model_name}:{model_version}"
+            else:
+                # Get the latest version
+                model_list = list(self.client.models.list(name=model_name))
+                if not model_list:
+                    raise Exception(f"Model {model_name} not found")
+                latest_model = max(model_list, key=lambda x: int(x.version))
+                model = f"{model_name}:{latest_model.version}"
+
+            deployment = ManagedOnlineDeployment(
+                name=deployment_name,
+                endpoint_name=endpoint_name,
+                model=model,
+                instance_type=instance_type,
+                instance_count=instance_count,
+            )
+
+            created_deployment = self.client.online_deployments.begin_create_or_update(
+                deployment
+            ).result()
+
+            # Update traffic if specified
+            if traffic_percentage > 0:
+                self.update_endpoint_traffic(
+                    endpoint_name, {deployment_name: traffic_percentage}
+                )
+
+            return {
+                "name": created_deployment.name,
+                "endpoint_name": created_deployment.endpoint_name,
+                "model": created_deployment.model,
+                "instance_type": created_deployment.instance_type,
+                "instance_count": created_deployment.instance_count,
+                "provisioning_state": created_deployment.provisioning_state,
+            }
+        except Exception as e:
+            raise Exception(f"Failed to create deployment: {str(e)}")
+
+    def update_endpoint_traffic(
+        self, endpoint_name: str, traffic_allocation: Dict[str, int]
+    ):
+        """Update traffic allocation for an endpoint."""
+        try:
+            endpoint = self.client.online_endpoints.get(endpoint_name)
+            endpoint.traffic = traffic_allocation
+
+            updated_endpoint = self.client.online_endpoints.begin_create_or_update(
+                endpoint
+            ).result()
+            return updated_endpoint.traffic
+        except Exception as e:
+            raise Exception(f"Failed to update endpoint traffic: {str(e)}")
+
+    def list_endpoint_deployments(self, endpoint_name: str):
+        """List all deployments for a specific endpoint."""
+        try:
+            deployments = list(
+                self.client.online_deployments.list(endpoint_name=endpoint_name)
+            )
+            return [
+                {
+                    "name": d.name,
+                    "endpoint_name": d.endpoint_name,
+                    "model": d.model,
+                    "instance_type": getattr(d, "instance_type", None),
+                    "instance_count": getattr(d, "instance_count", None),
+                    "provisioning_state": d.provisioning_state,
+                }
+                for d in deployments
+            ]
+        except Exception as e:
+            raise Exception(f"Failed to list deployments: {str(e)}")

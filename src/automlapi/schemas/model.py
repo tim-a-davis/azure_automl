@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 class Model(BaseModel):
     id: UUID
     tenant_id: str
+    dataset_id: Optional[UUID] = Field(default=None, description="Dataset used to train this model")
     task_type: Optional[str] = None
     input_schema: Optional[Dict[str, Any]] = Field(
         default=None, description="Input schema definition"

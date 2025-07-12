@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class Dataset(BaseModel):
     id: UUID
-    tenant_id: str
+    uploaded_by: UUID = Field(description="User ID who uploaded the dataset")
     asset_id: Optional[str] = None
     name: Optional[str] = None
     version: Optional[str] = None
@@ -17,3 +17,6 @@ class Dataset(BaseModel):
     row_count: Optional[int] = None
     byte_size: Optional[int] = None
     profile_path: Optional[str] = None
+    tags: Optional[Dict[str, Any]] = Field(
+        default=None, description="Tags for categorization and metadata"
+    )

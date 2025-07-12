@@ -24,6 +24,7 @@ def get_service() -> AzureAutoMLService:
     "/experiments",
     response_model=Run,
     operation_id="start_experiment",
+    tags=["mcp"],
 )
 async def start_experiment(
     exp: Experiment,
@@ -40,7 +41,7 @@ async def start_experiment(
     exp_record = ExperimentModel(
         id=exp.id,
         tenant_id=exp.tenant_id,
-        dataset_id=None,
+        dataset_id=exp.dataset_id,
         task_type=exp.task_type,
         primary_metric=exp.primary_metric,
         enable_early_termination=str(exp.enable_early_termination).lower()
@@ -72,6 +73,7 @@ async def start_experiment(
     "/experiments",
     response_model=list[Experiment],
     operation_id="list_experiments",
+    tags=["mcp"],
 )
 async def list_experiments(
     user=Depends(get_current_user),
@@ -89,6 +91,7 @@ async def list_experiments(
     "/experiments/{experiment_id}",
     response_model=Experiment,
     operation_id="get_experiment",
+    tags=["mcp"],
 )
 async def get_experiment(
     experiment_id: str = Path(..., description="Experiment identifier"),
@@ -137,6 +140,7 @@ async def update_experiment(
     experiment_id: str = Path(..., description="Experiment identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
+    tags=["mcp"],
 ) -> Experiment:
     """Update an experiment record.
 

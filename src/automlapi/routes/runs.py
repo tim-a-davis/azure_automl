@@ -16,6 +16,7 @@ router = APIRouter()
     "/runs",
     response_model=list[Run],
     operation_id="list_runs",
+    tags=["mcp"],
 )
 async def list_runs(
     user=Depends(get_current_user),
@@ -33,6 +34,7 @@ async def list_runs(
     "/runs/{run_id}",
     response_model=Run,
     operation_id="get_run",
+    tags=["mcp"],
 )
 async def get_run(
     run_id: str = Path(..., description="Run identifier"),

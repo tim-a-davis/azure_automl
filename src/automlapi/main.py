@@ -88,6 +88,7 @@ mcp = FastApiMCP(
     app,
     describe_all_responses=True,
     describe_full_response_schema=True,
+    include_tags=["mcp"],
     auth_config=AuthConfig(
         dependencies=[Depends(get_current_user)],
         issuer="http://localhost:8005",  # Our app's base URL

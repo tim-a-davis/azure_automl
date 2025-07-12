@@ -7,6 +7,7 @@ from fastapi import (
     Form,
     HTTPException,
     Path,
+    Query,
     Response,
     UploadFile,
 )
@@ -15,6 +16,7 @@ from sqlalchemy.orm import Session
 from ..auth import get_current_user
 from ..db import get_db
 from ..db.models import Dataset as DatasetModel
+from ..db.models import Model as ModelModel
 from ..schemas.dataset import Dataset
 from ..services.automl import AzureAutoMLService
 from ..utils import model_to_schema, models_to_schema
@@ -36,6 +38,9 @@ async def create_dataset(
     file: UploadFile = File(..., description="Dataset file to upload"),
     name: str = Form(..., description="Name for the dataset"),
     description: str = Form(None, description="Optional description for the dataset"),
+    tags: str = Form(
+        None, description="Optional JSON string of tags for categorization"
+    ),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
@@ -45,18 +50,30 @@ async def create_dataset(
     Reads the provided file and stores it in the workspace. Returns metadata
     about the created dataset record.
     """
+    import json
+
+    # Parse tags if provided
+    parsed_tags = None
+    if tags:
+        try:
+            parsed_tags = json.loads(tags)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON format for tags")
+
     data = await file.read()
     try:
         dataset = service.upload_dataset(name, data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
+
     record = DatasetModel(
         id=dataset.id,
-        tenant_id="",
+        uploaded_by=user,  # Store the user ID who uploaded the dataset
         asset_id=dataset.asset_id,
         name=dataset.name,
         version=dataset.version,
         storage_uri=dataset.storage_uri,
+        tags=parsed_tags,
     )
     db.add(record)
     db.commit()
@@ -68,16 +85,22 @@ async def create_dataset(
     "/datasets",
     response_model=list[Dataset],
     operation_id="list_datasets",
+    tags=["mcp"],
 )
 async def list_datasets(
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
+    uploaded_by: str = Query(None, description="Filter datasets by uploader user ID"),
 ) -> list[Dataset]:
     """List uploaded datasets.
 
-    Returns all dataset records stored in the database for the current tenant.
+    Returns all dataset records stored in the database. Optionally filter by uploader.
     """
-    records = db.query(DatasetModel).all()
+    query = db.query(DatasetModel)
+    if uploaded_by:
+        query = query.filter(DatasetModel.uploaded_by == uploaded_by)
+
+    records = query.all()
     return models_to_schema(records, Dataset)
 
 
@@ -85,6 +108,7 @@ async def list_datasets(
     "/datasets/{dataset_id}",
     response_model=Dataset,
     operation_id="get_dataset",
+    tags=["mcp"],
 )
 async def get_dataset(
     dataset_id: str = Path(..., description="Dataset identifier"),
@@ -146,3 +170,102 @@ async def update_dataset(
     db.commit()
     db.refresh(record)
     return model_to_schema(record, Dataset)
+
+
+@router.get(
+    "/datasets/search",
+    response_model=list[Dataset],
+    operation_id="search_datasets",
+    tags=["mcp"],
+)
+async def search_datasets(
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+    tag_key: str = Query(None, description="Search by tag key"),
+    tag_value: str = Query(None, description="Search by tag value"),
+    name_like: str = Query(None, description="Search by dataset name (partial match)"),
+) -> list[Dataset]:
+    """Search datasets by tags or name.
+
+    Allows filtering datasets by tag key/value pairs or partial name matching.
+    """
+    query = db.query(DatasetModel)
+
+    if tag_key and tag_value:
+        # Search for datasets where tags contain the key-value pair
+        query = query.filter(DatasetModel.tags.op("->>").text(tag_key) == tag_value)
+    elif tag_key:
+        # Search for datasets that have the tag key (regardless of value)
+        query = query.filter(DatasetModel.tags.op("?").text(tag_key))
+
+    if name_like:
+        query = query.filter(DatasetModel.name.ilike(f"%{name_like}%"))
+
+    records = query.all()
+    return models_to_schema(records, Dataset)
+
+
+@router.get(
+    "/datasets/{dataset_id}/experiments",
+    response_model=list,
+    operation_id="get_dataset_experiments",
+)
+async def get_dataset_experiments(
+    dataset_id: str = Path(..., description="Dataset identifier"),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get experiments that used this dataset.
+
+    Returns a list of experiments that were run using the specified dataset.
+    """
+    from ..db.models import Experiment as ExperimentModel
+
+    # First check if dataset exists
+    dataset = db.get(DatasetModel, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Get experiments that used this dataset
+    experiments = (
+        db.query(ExperimentModel).filter(ExperimentModel.dataset_id == dataset_id).all()
+    )
+
+    return [
+        {"id": exp.id, "task_type": exp.task_type, "created_at": exp.created_at}
+        for exp in experiments
+    ]
+
+
+@router.get(
+    "/datasets/{dataset_id}/models",
+    response_model=list,
+    operation_id="get_dataset_models",
+)
+async def get_dataset_models(
+    dataset_id: str = Path(..., description="Dataset identifier"),
+    user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get models trained on this dataset.
+
+    Returns a list of models that were trained using the specified dataset.
+    """
+
+    # First check if dataset exists
+    dataset = db.get(DatasetModel, dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Get models that used this dataset
+    models = db.query(ModelModel).filter(ModelModel.dataset_id == dataset_id).all()
+
+    return [
+        {
+            "id": model.id,
+            "task_type": model.task_type,
+            "azure_model_id": model.azure_model_id,
+            "created_at": model.created_at,
+        }
+        for model in models
+    ]

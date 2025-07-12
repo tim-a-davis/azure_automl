@@ -121,6 +121,7 @@ async def exchange_azure_token(request: TokenExchangeRequest) -> TokenExchangeRe
 @router.get(
     "/auth/me",
     operation_id="get_current_user_info",
+    tags=["mcp"],
 )
 async def get_current_user_info(
     token: HTTPAuthorizationCredentials = Depends(security),

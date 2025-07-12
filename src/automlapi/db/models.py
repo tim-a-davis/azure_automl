@@ -1,17 +1,9 @@
 import uuid
 
-from sqlalchemy import (
-    JSON,
-    Column,
-    DateTime,
-    Float,
-    ForeignKey,
-    Index,
-    Integer,
-    String,
-    TypeDecorator,
-)
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer
+from sqlalchemy import String
 from sqlalchemy import String as SQLString
+from sqlalchemy import TypeDecorator
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.sql import func
 
@@ -66,10 +58,9 @@ class TimestampMixin:
 class Dataset(TimestampMixin, Base):
     __tablename__ = "datasets"
     __table_args__ = (
-        Index("ix_dataset_tenant_name", "tenant_id", "name"),
+        Index("ix_dataset_uploaded_by", "uploaded_by"),
         Index(
-            "ix_dataset_tenant_name_version",
-            "tenant_id",
+            "ix_dataset_name_version",
             "name",
             "version",
             unique=True,
@@ -77,7 +68,7 @@ class Dataset(TimestampMixin, Base):
     )
 
     id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
+    uploaded_by = Column(UUID, nullable=False)  # User ID who uploaded the dataset
     asset_id = Column(String(255))
     name = Column(String(255), nullable=False)
     version = Column(String(50))
@@ -86,6 +77,7 @@ class Dataset(TimestampMixin, Base):
     row_count = Column(Integer)
     byte_size = Column(Integer)
     profile_path = Column(String(1000))
+    tags = Column(JSON)  # Store tags for categorization and search
 
 
 class Experiment(TimestampMixin, Base):
@@ -132,6 +124,7 @@ class Model(TimestampMixin, Base):
 
     id = Column(UUID, primary_key=True, default=default_uuid)
     tenant_id = Column(String(255), nullable=False)
+    dataset_id = Column(UUID, ForeignKey("datasets.id", ondelete="SET NULL"))
     task_type = Column(String(100))
     input_schema = Column(JSON)
     output_schema = Column(JSON)
@@ -144,7 +137,16 @@ class Endpoint(TimestampMixin, Base):
 
     id = Column(UUID, primary_key=True, default=default_uuid)
     tenant_id = Column(String(255), nullable=False)
+    name = Column(String(255))
+    azure_endpoint_name = Column(String(255))
+    azure_endpoint_url = Column(String(500))
+    auth_mode = Column(String(50), default="key")
+    provisioning_state = Column(String(50))
+    description = Column(String(1000))
+    dataset_id = Column(UUID, ForeignKey("datasets.id", ondelete="SET NULL"))
     deployments = Column(JSON)
+    traffic = Column(JSON)
+    tags = Column(JSON)
     model_id = Column(UUID, ForeignKey("models.id", ondelete="CASCADE"))
     blue_traffic = Column(Integer)
     latency = Column(Float)

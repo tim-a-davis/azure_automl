@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class Experiment(BaseModel):
     id: UUID
     tenant_id: str
+    dataset_id: Optional[UUID] = None  # Link to the dataset used for training
     task_type: Optional[str] = None
     primary_metric: Optional[str] = None
     training_data: Optional[str] = None
