@@ -1,8 +1,11 @@
-from pydantic import BaseModel
+from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel
+
 
 class CostRecord(BaseModel):
     id: UUID
     tenant_id: str
-    billing_scope: str | None = None
-    last_bill: float | None = None
+    billing_scope: Optional[str] = None
+    last_bill: Optional[float] = None

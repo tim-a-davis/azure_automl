@@ -1,6 +1,6 @@
 """API routes for running AutoML experiments."""
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -114,7 +114,7 @@ async def delete_experiment(
     experiment_id: str = Path(..., description="Experiment identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> None:
+):
     """Delete an experiment.
 
     Removes the experiment record from the database if it exists.
@@ -124,7 +124,7 @@ async def delete_experiment(
         raise HTTPException(status_code=404, detail="Experiment not found")
     db.delete(record)
     db.commit()
-    return None
+    return Response(status_code=204)
 
 
 @router.put(

@@ -32,21 +32,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# Expose API endpoints as MCP tools for language models
-mcp = FastApiMCP(
-    app,
-    describe_all_responses=True,
-    describe_full_response_schema=True,
-    auth_config=AuthConfig(
-        dependencies=[Depends(get_current_user)],
-        issuer="http://localhost:8005",  # Our app's base URL
-        audience="automl-api",
-        default_scope="openid profile email automl:read automl:write",
-    ),
-)
-mcp.mount()
 
-
+# Add exception handlers first
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     """Return a generic 500 response for unhandled exceptions."""
@@ -59,6 +46,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
 
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -85,6 +73,7 @@ async def add_tenant(request: Request, call_next):
     return response
 
 
+# Include all routers
 app.include_router(auth.router)
 app.include_router(datasets.router)
 app.include_router(experiments.router)
@@ -94,6 +83,19 @@ app.include_router(endpoints.router)
 app.include_router(users.router)
 app.include_router(rbac.router)
 
+# Setup MCP after all routes are added
+mcp = FastApiMCP(
+    app,
+    describe_all_responses=True,
+    describe_full_response_schema=True,
+    auth_config=AuthConfig(
+        dependencies=[Depends(get_current_user)],
+        issuer="http://localhost:8005",  # Our app's base URL
+        audience="automl-api",
+        default_scope="openid profile email automl:read automl:write",
+    ),
+)
+mcp.setup_server()
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
     uvicorn.run(app, host="0.0.0.0", port=8000)

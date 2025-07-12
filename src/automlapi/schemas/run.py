@@ -1,17 +1,21 @@
-from pydantic import BaseModel
-from uuid import UUID
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
 
 class Run(BaseModel):
     id: UUID
     tenant_id: str
-    experiment_id: UUID | None = None
-    job_name: str | None = None
-    queued_at: datetime | None = None
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    metrics: Any | None = None
-    logs_uri: str | None = None
-    charts_uri: str | None = None
-    best_model_id: UUID | None = None
+    experiment_id: Optional[UUID] = None
+    job_name: Optional[str] = None
+    queued_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    metrics: Optional[Dict[str, Any]] = Field(
+        default=None, description="Training metrics"
+    )
+    logs_uri: Optional[str] = None
+    charts_uri: Optional[str] = None
+    best_model_id: Optional[UUID] = None

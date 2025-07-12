@@ -1,11 +1,15 @@
-from pydantic import BaseModel
+from typing import Any, Dict, Optional
 from uuid import UUID
-from typing import Any
+
+from pydantic import BaseModel, Field
+
 
 class Endpoint(BaseModel):
     id: UUID
     tenant_id: str
-    deployments: Any | None = None
-    blue_traffic: int | None = None
-    latency: float | None = None
-    error_rate: float | None = None
+    deployments: Optional[Dict[str, Any]] = Field(
+        default=None, description="Deployment configuration"
+    )
+    blue_traffic: Optional[int] = None
+    latency: Optional[float] = None
+    error_rate: Optional[float] = None

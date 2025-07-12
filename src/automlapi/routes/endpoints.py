@@ -1,13 +1,13 @@
 """API routes for managing deployment endpoints."""
 
-from fastapi import APIRouter, Depends, WebSocket, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, WebSocket
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
-from ..schemas.endpoint import Endpoint
-from ..utils import model_to_schema, models_to_schema
 from ..db import get_db
 from ..db.models import Endpoint as EndpointModel
+from ..schemas.endpoint import Endpoint
+from ..utils import model_to_schema, models_to_schema
 
 router = APIRouter()
 
@@ -79,7 +79,7 @@ async def delete_endpoint(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> None:
+):
     """Remove a deployment endpoint.
 
     Deletes the record from the database if found.
@@ -89,7 +89,7 @@ async def delete_endpoint(
         raise HTTPException(status_code=404, detail="Endpoint not found")
     db.delete(record)
     db.commit()
-    return None
+    return Response(status_code=204)
 
 
 @router.put(

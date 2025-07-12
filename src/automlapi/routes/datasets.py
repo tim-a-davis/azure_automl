@@ -1,6 +1,15 @@
 """API routes for managing datasets."""
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Path, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Path,
+    Response,
+    UploadFile,
+)
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -101,7 +110,7 @@ async def delete_dataset(
     dataset_id: str = Path(..., description="Dataset identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> None:
+):
     """Remove an existing dataset.
 
     Deletes the dataset record and associated storage if found.
@@ -111,7 +120,7 @@ async def delete_dataset(
         raise HTTPException(status_code=404, detail="Dataset not found")
     db.delete(record)
     db.commit()
-    return None
+    return Response(status_code=204)
 
 
 @router.put(

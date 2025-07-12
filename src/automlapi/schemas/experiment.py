@@ -7,12 +7,12 @@ from pydantic import BaseModel
 class Experiment(BaseModel):
     id: UUID
     tenant_id: str
-    task_type: str | None = None
-    primary_metric: str | None = None
-    training_data: str | None = None
-    target_column_name: str | None = None
-    compute: str | None = None
-    n_cross_validations: int | None = None
+    task_type: Optional[str] = None
+    primary_metric: Optional[str] = None
+    training_data: Optional[str] = None
+    target_column_name: Optional[str] = None
+    compute: Optional[str] = None
+    n_cross_validations: Optional[int] = None
 
     # Limit settings with defaults
     enable_early_termination: Optional[bool] = None

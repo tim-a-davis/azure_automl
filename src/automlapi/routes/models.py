@@ -1,15 +1,16 @@
 """API routes for managing model records."""
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from sqlalchemy.orm import Session
 
-from ..schemas.model import Model
-from ..utils import model_to_schema, models_to_schema
 from ..auth import get_current_user
 from ..db import get_db
 from ..db.models import Model as ModelModel
+from ..schemas.model import Model
+from ..utils import model_to_schema, models_to_schema
 
 router = APIRouter()
+
 
 @router.post(
     "/models",
@@ -78,7 +79,7 @@ async def delete_model(
     model_id: str = Path(..., description="Model identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> None:
+):
     """Delete a model record.
 
     Removes the specified model from the database.
@@ -88,7 +89,7 @@ async def delete_model(
         raise HTTPException(status_code=404, detail="Model not found")
     db.delete(record)
     db.commit()
-    return None
+    return Response(status_code=204)
 
 
 @router.put(

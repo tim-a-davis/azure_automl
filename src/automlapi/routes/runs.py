@@ -1,14 +1,13 @@
 """API routes for working with experiment runs."""
 
-from fastapi import APIRouter, Depends, WebSocket, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, WebSocket
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
-from ..schemas.run import Run
-from ..utils import model_to_schema, models_to_schema
-
 from ..db import get_db
 from ..db.models import Run as RunModel
+from ..schemas.run import Run
+from ..utils import model_to_schema, models_to_schema
 
 router = APIRouter()
 
@@ -59,7 +58,7 @@ async def delete_run(
     run_id: str = Path(..., description="Run identifier"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> None:
+):
     """Delete a run.
 
     Removes the run record from the database if found.
@@ -69,7 +68,7 @@ async def delete_run(
         raise HTTPException(status_code=404, detail="Run not found")
     db.delete(record)
     db.commit()
-    return None
+    return Response(status_code=204)
 
 
 @router.put(
@@ -98,7 +97,9 @@ async def update_run(
 
 
 @router.websocket("/ws/runs/{run_id}/status", name="ws_run_status")
-async def ws_run_status(websocket: WebSocket, run_id: str = Path(..., description="Run identifier")):
+async def ws_run_status(
+    websocket: WebSocket, run_id: str = Path(..., description="Run identifier")
+):
     """Stream run status updates.
 
     Sends simple text notifications about the run's progress.

@@ -1,15 +1,19 @@
-from pydantic import BaseModel
+from typing import List, Optional
 from uuid import UUID
-from typing import List
+
+from pydantic import BaseModel, Field
+
 
 class Dataset(BaseModel):
     id: UUID
     tenant_id: str
-    asset_id: str | None = None
-    name: str | None = None
-    version: str | None = None
-    storage_uri: str | None = None
-    columns: List[str] | None = None
-    row_count: int | None = None
-    byte_size: int | None = None
-    profile_path: str | None = None
+    asset_id: Optional[str] = None
+    name: Optional[str] = None
+    version: Optional[str] = None
+    storage_uri: Optional[str] = None
+    columns: Optional[List[str]] = Field(
+        default=None, description="List of column names in the dataset"
+    )
+    row_count: Optional[int] = None
+    byte_size: Optional[int] = None
+    profile_path: Optional[str] = None
