@@ -95,6 +95,7 @@ mcp = FastApiMCP(
         default_scope="openid profile email automl:read automl:write",
     ),
 )
+mcp.mount()
 mcp.setup_server()
 
 if __name__ == "__main__":

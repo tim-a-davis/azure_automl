@@ -27,9 +27,6 @@ class Settings(BaseSettings):
     # JWT settings
     jwt_secret: str | None = None
 
-    # Base URL for device flow redirects
-    base_url: str = "http://localhost:8005"
-
     # Environment setting
     environment: str = "production"
 
