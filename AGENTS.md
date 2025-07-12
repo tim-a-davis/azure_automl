@@ -116,7 +116,7 @@ The API can function as a Model Context Protocol (MCP) server via the `fastapi-m
 2. Set environment variables (or create `.env` file)
 3. Initialize database: `uv run python scripts/create_tables.py`
 4. Start server: `uv run python -m automlapi.runserver`
-5. Server runs on `http://0.0.0.0:8000`
+5. Server runs on `http://0.0.0.0:8005`
 
 ## Project Structure
 

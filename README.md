@@ -111,7 +111,7 @@ For Windows and Linux installation instructions, see the [Microsoft documentatio
    uv run python -m automlapi.runserver
    ```
 
-   The server listens on `http://0.0.0.0:8000`.
+   The server listens on `http://0.0.0.0:8005`.
 
 ## Endpoints
 
@@ -147,7 +147,7 @@ With the package installed, no additional configuration is required. Simply star
 
 ```bash
 uv run python -m automlapi.runserver
-# tools will be available under http://localhost:8000/mcp
+# tools will be available under http://localhost:8005/mcp
 ```
 
 Consult the [fastapi-mcp documentation](https://fastapi-mcp.tadata.com/) for advanced usage and authentication options.
@@ -739,16 +739,16 @@ uv run python -m automlapi.runserver
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
 # Test authentication
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/auth/me
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8005/auth/me
 
 # List datasets
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/datasets
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8005/datasets
 
 # List experiments
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/experiments
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8005/experiments
 
 # List models
-curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/models
+curl -H "Authorization: Bearer $TOKEN" http://localhost:8005/models
 
 # Upload a dataset (create a test CSV first)
 echo "col1,col2,col3" > test_data.csv
@@ -760,7 +760,7 @@ curl -X POST \
   -F "file=@test_data.csv" \
   -F "name=test_dataset" \
   -F "description=Test dataset for API testing" \
-  http://localhost:8000/datasets
+  http://localhost:8005/datasets
 ```
 
 ### Method 2: Using Postman
@@ -773,13 +773,13 @@ curl -X POST \
 3. **Create requests**:
 
 ```http
-GET http://localhost:8000/datasets
+GET http://localhost:8005/datasets
 Authorization: Bearer YOUR_TOKEN_HERE
 
-GET http://localhost:8000/auth/me
+GET http://localhost:8005/auth/me
 Authorization: Bearer YOUR_TOKEN_HERE
 
-POST http://localhost:8000/datasets
+POST http://localhost:8005/datasets
 Authorization: Bearer YOUR_TOKEN_HERE
 Content-Type: multipart/form-data
 Body: form-data
@@ -802,7 +802,7 @@ import os
 from pathlib import Path
 
 # Configuration
-API_BASE_URL = "http://localhost:8000"
+API_BASE_URL = "http://localhost:8005"
 TOKEN = "your_jwt_token_here"  # Get this from create_token.py
 
 headers = {
@@ -933,12 +933,12 @@ pip install httpie
 export TOKEN="your_jwt_token_here"
 
 # Test endpoints
-http GET localhost:8000/auth/me "Authorization:Bearer $TOKEN"
-http GET localhost:8000/datasets "Authorization:Bearer $TOKEN"
-http GET localhost:8000/experiments "Authorization:Bearer $TOKEN"
+http GET localhost:8005/auth/me "Authorization:Bearer $TOKEN"
+http GET localhost:8005/datasets "Authorization:Bearer $TOKEN"
+http GET localhost:8005/experiments "Authorization:Bearer $TOKEN"
 
 # Upload file
-http --form POST localhost:8000/datasets \
+http --form POST localhost:8005/datasets \
   "Authorization:Bearer $TOKEN" \
   file@test_data.csv \
   name="test_dataset" \
@@ -957,17 +957,17 @@ session.headers.update({
 })
 
 # Test interactively
-response = session.get("http://localhost:8000/auth/me")
+response = session.get("http://localhost:8005/auth/me")
 print(response.json())
 
-datasets = session.get("http://localhost:8000/datasets")
+datasets = session.get("http://localhost:8005/datasets")
 print(f"Datasets: {len(datasets.json())}")
 
 # Upload a file
 with open("test_data.csv", "rb") as f:
     files = {"file": ("test.csv", f, "text/csv")}
     data = {"name": "interactive_test", "description": "Test from REPL"}
-    response = session.post("http://localhost:8000/datasets", files=files, data=data)
+    response = session.post("http://localhost:8005/datasets", files=files, data=data)
     print(f"Upload status: {response.status_code}")
 ```
 
@@ -977,7 +977,7 @@ Use this checklist to verify your API is working:
 
 - [ ] **Environment**: `.env` file configured with `JWT_SECRET`
 - [ ] **Database**: Tables created with `uv run python scripts/create_tables.py`
-- [ ] **Server**: API running on `http://localhost:8000`
+- [ ] **Server**: API running on `http://localhost:8005`
 - [ ] **Token**: Generated with `uv run python scripts/create_token.py`
 - [ ] **Auth**: `/auth/me` returns user info
 - [ ] **Datasets**: Can list and upload datasets
@@ -1007,7 +1007,7 @@ print(jwt.decode(token, options={'verify_signature': False}))
 "
 
 # Test basic connectivity
-curl http://localhost:8000/docs  # Should show OpenAPI docs
+curl http://localhost:8005/docs  # Should show OpenAPI docs
 ```
 
 This approach lets you fully test your API functionality without any frontend complexity!
