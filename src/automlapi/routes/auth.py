@@ -41,19 +41,57 @@ def validate_azure_token(token: str) -> dict:
             raise RuntimeError("PyJWKClient unavailable")
 
         signing_key = jwks_client.get_signing_key_from_jwt(token).key
-        claims = jwt.decode(
-            token,
-            signing_key,
-            algorithms=["RS256"],
-            audience=f"api://{settings.azure_client_id}",
-            issuer=f"https://login.microsoftonline.com/{settings.azure_tenant_id}/v2.0",
-        )
 
-        if "access_as_user" not in claims.get("scp", "").split():
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing required scope",
+        # Try to decode with different issuer formats
+        # Azure AD can use different issuers depending on endpoint version
+        possible_issuers = [
+            f"https://login.microsoftonline.com/{settings.azure_tenant_id}/v2.0",
+            f"https://sts.windows.net/{settings.azure_tenant_id}/",
+        ]
+
+        claims = None
+        last_error = None
+
+        for issuer in possible_issuers:
+            try:
+                claims = jwt.decode(
+                    token,
+                    signing_key,
+                    algorithms=["RS256"],
+                    audience=f"api://{settings.azure_client_id}",
+                    issuer=issuer,
+                )
+                break  # Success, exit the loop
+            except Exception as e:
+                last_error = e
+                continue
+
+        if claims is None:
+            raise last_error or RuntimeError(
+                "Failed to validate token with any known issuer"
             )
+
+        # For client credentials flow (service principal tokens),
+        # the scope behavior is different than user tokens
+        scopes = claims.get("scp", "")
+        app_id = claims.get("appid")
+
+        # Check if this is a service principal token (client credentials flow)
+        is_service_principal = app_id == settings.azure_client_id
+
+        if is_service_principal:
+            # For service principal tokens, we trust the token if:
+            # 1. It's for the correct audience (our API)
+            # 2. It's issued by our tenant
+            # 3. The appid matches our client_id
+            print(f"Service principal token validated for app: {app_id}")
+        else:
+            # For user tokens, check for the access_as_user scope
+            if "access_as_user" not in scopes.split():
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Missing required scope for user token",
+                )
 
         return claims
     except Exception as e:
