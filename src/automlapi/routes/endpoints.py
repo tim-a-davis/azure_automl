@@ -1,11 +1,12 @@
 """API routes for managing deployment endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Response, WebSocket, Form
-from sqlalchemy.orm import Session
-from typing import Optional
 import json
+from typing import Optional
 
-from ..auth import get_current_user
+from fastapi import APIRouter, Depends, Form, HTTPException, Path, Response, WebSocket
+from sqlalchemy.orm import Session
+
+from ..auth import UserInfo, get_current_user, require_maintainer
 from ..db import get_db
 from ..db.models import Endpoint as EndpointModel
 from ..schemas.endpoint import Endpoint
@@ -49,11 +50,9 @@ async def create_endpoint(
     try:
         # Create the endpoint in Azure ML
         azure_endpoint = service.create_endpoint(
-            endpoint_name=endpoint_name,
-            description=description,
-            tags=parsed_tags
+            endpoint_name=endpoint_name, description=description, tags=parsed_tags
         )
-        
+
         # Store the endpoint metadata in our database
         record = EndpointModel(
             id=azure_endpoint.id,
@@ -71,10 +70,12 @@ async def create_endpoint(
         db.add(record)
         db.commit()
         db.refresh(record)
-        
+
         return model_to_schema(record, Endpoint)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create endpoint: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create endpoint: {str(e)}"
+        )
 
 
 @router.get(
@@ -95,31 +96,42 @@ async def list_endpoints(
     try:
         # Get endpoints from Azure ML
         azure_endpoints = service.list_endpoints()
-        
+
         # Get endpoints from local database
         db_records = db.query(EndpointModel).all()
-        db_endpoint_names = {record.azure_endpoint_name for record in db_records if record.azure_endpoint_name}
-        
+        db_endpoint_names = {
+            record.azure_endpoint_name
+            for record in db_records
+            if record.azure_endpoint_name
+        }
+
         # Sync any new endpoints from Azure ML to our database
         for azure_endpoint in azure_endpoints:
-            if hasattr(azure_endpoint, 'name') and azure_endpoint.name not in db_endpoint_names:
+            if (
+                hasattr(azure_endpoint, "name")
+                and azure_endpoint.name not in db_endpoint_names
+            ):
                 # This endpoint exists in Azure ML but not in our database, so add it
                 record = EndpointModel(
                     tenant_id=user,
                     name=azure_endpoint.name,
                     azure_endpoint_name=azure_endpoint.name,
-                    azure_endpoint_url=getattr(azure_endpoint, 'azure_endpoint_url', None),
-                    auth_mode=getattr(azure_endpoint, 'auth_mode', 'key'),
-                    provisioning_state=getattr(azure_endpoint, 'provisioning_state', None),
-                    description=getattr(azure_endpoint, 'description', None),
-                    deployments=getattr(azure_endpoint, 'deployments', None),
-                    traffic=getattr(azure_endpoint, 'traffic', None),
-                    tags=getattr(azure_endpoint, 'tags', None),
+                    azure_endpoint_url=getattr(
+                        azure_endpoint, "azure_endpoint_url", None
+                    ),
+                    auth_mode=getattr(azure_endpoint, "auth_mode", "key"),
+                    provisioning_state=getattr(
+                        azure_endpoint, "provisioning_state", None
+                    ),
+                    description=getattr(azure_endpoint, "description", None),
+                    deployments=getattr(azure_endpoint, "deployments", None),
+                    traffic=getattr(azure_endpoint, "traffic", None),
+                    tags=getattr(azure_endpoint, "tags", None),
                 )
                 db.add(record)
-        
+
         db.commit()
-        
+
         # Return updated list from database
         updated_records = db.query(EndpointModel).all()
         return models_to_schema(updated_records, Endpoint)
@@ -149,25 +161,25 @@ async def get_endpoint(
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    
+
     # If we have the Azure endpoint name, try to get fresh data from Azure ML
     if record.azure_endpoint_name:
         try:
             azure_endpoint = service.get_endpoint(record.azure_endpoint_name)
-            
+
             # Update database record with fresh Azure ML data
             record.azure_endpoint_url = azure_endpoint.azure_endpoint_url
             record.provisioning_state = azure_endpoint.provisioning_state
             record.deployments = azure_endpoint.deployments
             record.traffic = azure_endpoint.traffic
             record.tags = azure_endpoint.tags
-            
+
             db.commit()
             db.refresh(record)
         except Exception:
             # If Azure ML call fails, continue with database data
             pass
-    
+
     return model_to_schema(record, Endpoint)
 
 
@@ -176,20 +188,22 @@ async def get_endpoint(
     status_code=204,
     operation_id="delete_endpoint",
 )
+@require_maintainer
 async def delete_endpoint(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
-    user=Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ):
     """Remove a deployment endpoint.
 
     Deletes the endpoint from both Azure ML and the database.
+    Only MAINTAINERs and ADMINs can delete endpoints.
     """
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    
+
     # Delete from Azure ML if we have the Azure endpoint name
     if record.azure_endpoint_name:
         try:
@@ -198,10 +212,9 @@ async def delete_endpoint(
             # If Azure ML deletion fails, we'll still remove from database
             # but return an error message
             raise HTTPException(
-                status_code=500, 
-                detail=f"Failed to delete from Azure ML: {str(e)}"
+                status_code=500, detail=f"Failed to delete from Azure ML: {str(e)}"
             )
-    
+
     # Delete from database
     db.delete(record)
     db.commit()
@@ -229,7 +242,7 @@ async def update_endpoint(
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    
+
     # Parse tags if provided
     parsed_tags = None
     if tags:
@@ -237,16 +250,16 @@ async def update_endpoint(
             parsed_tags = json.loads(tags)
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON format for tags")
-    
+
     # Update in Azure ML if we have the Azure endpoint name
     if record.azure_endpoint_name:
         try:
             azure_endpoint = service.update_endpoint(
                 endpoint_name=record.azure_endpoint_name,
                 description=description,
-                tags=parsed_tags
+                tags=parsed_tags,
             )
-            
+
             # Update database record with Azure ML response
             if description is not None:
                 record.description = azure_endpoint.description
@@ -255,8 +268,7 @@ async def update_endpoint(
             record.provisioning_state = azure_endpoint.provisioning_state
         except Exception as e:
             raise HTTPException(
-                status_code=500, 
-                detail=f"Failed to update in Azure ML: {str(e)}"
+                status_code=500, detail=f"Failed to update in Azure ML: {str(e)}"
             )
     else:
         # Update local record only
@@ -264,7 +276,7 @@ async def update_endpoint(
             record.description = description
         if parsed_tags is not None:
             record.tags = parsed_tags
-    
+
     db.commit()
     db.refresh(record)
     return model_to_schema(record, Endpoint)
@@ -292,10 +304,14 @@ async def create_deployment(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
     deployment_name: str = Form(..., description="Name for the deployment"),
     model_name: str = Form(..., description="Model name to deploy"),
-    model_version: Optional[str] = Form(None, description="Model version (latest if not specified)"),
+    model_version: Optional[str] = Form(
+        None, description="Model version (latest if not specified)"
+    ),
     instance_type: str = Form("Standard_DS3_v2", description="Azure instance type"),
     instance_count: int = Form(1, description="Number of instances"),
-    traffic_percentage: int = Form(0, description="Traffic percentage for this deployment"),
+    traffic_percentage: int = Form(
+        0, description="Traffic percentage for this deployment"
+    ),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
@@ -307,10 +323,12 @@ async def create_deployment(
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    
+
     if not record.azure_endpoint_name:
-        raise HTTPException(status_code=400, detail="Endpoint is not linked to Azure ML")
-    
+        raise HTTPException(
+            status_code=400, detail="Endpoint is not linked to Azure ML"
+        )
+
     try:
         deployment = service.create_deployment(
             endpoint_name=record.azure_endpoint_name,
@@ -319,20 +337,22 @@ async def create_deployment(
             model_version=model_version,
             instance_type=instance_type,
             instance_count=instance_count,
-            traffic_percentage=traffic_percentage
+            traffic_percentage=traffic_percentage,
         )
-        
+
         # Update the endpoint record with the new deployment info
         if not record.deployments:
             record.deployments = {}
         record.deployments[deployment_name] = deployment
-        
+
         db.commit()
         db.refresh(record)
-        
+
         return {"message": "Deployment created successfully", "deployment": deployment}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create deployment: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create deployment: {str(e)}"
+        )
 
 
 @router.get(
@@ -350,15 +370,19 @@ async def list_deployments(
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    
+
     if not record.azure_endpoint_name:
-        raise HTTPException(status_code=400, detail="Endpoint is not linked to Azure ML")
-    
+        raise HTTPException(
+            status_code=400, detail="Endpoint is not linked to Azure ML"
+        )
+
     try:
         deployments = service.list_endpoint_deployments(record.azure_endpoint_name)
         return {"deployments": deployments}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list deployments: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list deployments: {str(e)}"
+        )
 
 
 @router.put(
@@ -368,7 +392,9 @@ async def list_deployments(
 )
 async def update_traffic(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
-    traffic_allocation: str = Form(..., description="JSON string of traffic allocation"),
+    traffic_allocation: str = Form(
+        ..., description="JSON string of traffic allocation"
+    ),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
@@ -377,24 +403,38 @@ async def update_traffic(
     record = db.get(EndpointModel, endpoint_id)
     if not record:
         raise HTTPException(status_code=404, detail="Endpoint not found")
-    
+
     if not record.azure_endpoint_name:
-        raise HTTPException(status_code=400, detail="Endpoint is not linked to Azure ML")
-    
+        raise HTTPException(
+            status_code=400, detail="Endpoint is not linked to Azure ML"
+        )
+
     # Parse traffic allocation
     try:
         parsed_traffic = json.loads(traffic_allocation)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON format for traffic allocation")
-    
+        raise HTTPException(
+            status_code=400, detail="Invalid JSON format for traffic allocation"
+        )
+
     try:
-        updated_traffic = service.update_endpoint_traffic(record.azure_endpoint_name, parsed_traffic)
-        
+        updated_traffic = service.update_endpoint_traffic(
+            record.azure_endpoint_name, parsed_traffic
+        )
+
         # Update the database record
         record.traffic = updated_traffic
         db.commit()
         db.refresh(record)
-        
-        return {"message": "Traffic allocation updated successfully", "traffic": updated_traffic}
+
+        return {
+            "message": "Traffic allocation updated successfully",
+            "traffic": updated_traffic,
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update traffic: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update traffic: {str(e)}"
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update traffic: {str(e)}"
+        )

@@ -13,7 +13,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import UserInfo, get_current_user, require_maintainer
 from ..db import get_db
 from ..db.models import Dataset as DatasetModel
 from ..db.models import Model as ModelModel
@@ -130,14 +130,16 @@ async def get_dataset(
     status_code=204,
     operation_id="delete_dataset",
 )
+@require_maintainer
 async def delete_dataset(
     dataset_id: str = Path(..., description="Dataset identifier"),
-    user=Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Remove an existing dataset.
 
     Deletes the dataset record and associated storage if found.
+    Only MAINTAINERs and ADMINs can delete datasets.
     """
     record = db.get(DatasetModel, dataset_id)
     if not record:

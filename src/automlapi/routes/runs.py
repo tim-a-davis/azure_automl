@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Response, WebSocket
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import UserInfo, get_current_user, require_maintainer
 from ..db import get_db
 from ..db.models import Run as RunModel
 from ..schemas.run import Run
@@ -56,14 +56,16 @@ async def get_run(
     status_code=204,
     operation_id="delete_run",
 )
+@require_maintainer
 async def delete_run(
     run_id: str = Path(..., description="Run identifier"),
-    user=Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Delete a run.
 
     Removes the run record from the database if found.
+    Only MAINTAINERs and ADMINs can delete runs.
     """
     record = db.get(RunModel, run_id)
     if not record:

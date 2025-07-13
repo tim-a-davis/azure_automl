@@ -169,10 +169,9 @@ class Role(TimestampMixin, Base):
 
 class User(TimestampMixin, Base):
     __tablename__ = "users"
-    __table_args__ = (Index("ix_user_tenant_name", "tenant_id", "id"),)
+    __table_args__ = (Index("ix_user_id", "id"),)
 
     id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
     role_id = Column(UUID, ForeignKey("roles.id", ondelete="SET NULL"))
 
 
@@ -185,3 +184,13 @@ class AuditEntry(TimestampMixin, Base):
     user_id = Column(UUID)
     action = Column(String(100))
     diff = Column(JSON)
+    __tablename__ = "audit_entries"
+    __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)
+
+    id = Column(UUID, primary_key=True, default=default_uuid)
+    tenant_id = Column(String(255), nullable=False)
+    user_id = Column(UUID)
+    action = Column(String(100))
+    diff = Column(JSON)
+    __tablename__ = "audit_entries"
+    __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)

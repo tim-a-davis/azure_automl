@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import UserInfo, get_current_user, require_maintainer
 from ..db import get_db
 from ..db.models import Model as ModelModel
 from ..schemas.model import Model
@@ -75,14 +75,16 @@ async def get_model(
     status_code=204,
     operation_id="delete_model",
 )
+@require_maintainer
 async def delete_model(
     model_id: str = Path(..., description="Model identifier"),
-    user=Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Delete a model record.
 
     Removes the specified model from the database.
+    Only MAINTAINERs and ADMINs can delete models.
     """
     record = db.get(ModelModel, model_id)
     if not record:

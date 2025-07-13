@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Path, Response
 from sqlalchemy.orm import Session
 
-from ..auth import get_current_user
+from ..auth import UserInfo, get_current_user, require_maintainer
 from ..db import get_db
 from ..db.models import Experiment as ExperimentModel
 from ..db.models import Run as RunModel
@@ -113,14 +113,16 @@ async def get_experiment(
     status_code=204,
     operation_id="delete_experiment",
 )
+@require_maintainer
 async def delete_experiment(
     experiment_id: str = Path(..., description="Experiment identifier"),
-    user=Depends(get_current_user),
+    current_user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Delete an experiment.
 
     Removes the experiment record from the database if it exists.
+    Only MAINTAINERs and ADMINs can delete experiments.
     """
     record = db.get(ExperimentModel, experiment_id)
     if not record:

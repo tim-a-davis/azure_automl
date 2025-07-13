@@ -11,5 +11,4 @@ class Role(BaseModel):
 
 class User(BaseModel):
     id: UUID
-    tenant_id: str
     role_id: Optional[UUID] = None
