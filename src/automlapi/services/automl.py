@@ -50,7 +50,7 @@ class AzureAutoMLService:
     def list_endpoints(self) -> List[EndpointSchema]:
         return [EndpointSchema(**e) for e in self.client.online_endpoints.list()]  # type: ignore
 
-    def upload_dataset(self, dataset_name: str, data: bytes) -> DatasetSchema:
+    def upload_dataset(self, dataset_name: str, data: bytes) -> dict:
         """Upload a dataset to the workspace as MLTable format for AutoML compatibility."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             # Create the dataset CSV file
@@ -86,13 +86,12 @@ transformations:
             created = self.client.data.create_or_update(dataset)
             info: Dict[str, Any] = getattr(created, "_to_dict", lambda: {})()
 
-        return DatasetSchema(
-            id=str(uuid4()),  # Generate a new UUID for our internal tracking
-            tenant_id="",
-            name=info.get("name", dataset_name),
-            version=info.get("version"),
-            storage_uri=info.get("path", tmp_dir),
-        )
+        return {
+            "id": str(uuid4()),  # Generate a new UUID for our internal tracking
+            "name": info.get("name", dataset_name),
+            "version": info.get("version"),
+            "storage_uri": info.get("path", tmp_dir),
+        }
 
     def _configure_job_limits(self, job, config: ExperimentSchema):
         """Configure limits for AutoML jobs using the set_limits method."""
@@ -191,7 +190,8 @@ transformations:
             id=str(
                 uuid4()
             ),  # Generate our own UUID for tracking since Azure ML IDs aren't UUID format
-            tenant_id=config.tenant_id,
+            user_id=config.user_id,
+            experiment_id=config.id,  # Set the experiment_id from the config
             job_name=getattr(submitted, "name", None),
             queued_at=queued,
         )
@@ -294,7 +294,7 @@ transformations:
             # Convert to our schema format
             endpoint_dict = {
                 "id": str(uuid4()),  # Generate a UUID for our internal tracking
-                "tenant_id": "",  # Will be set by the calling route
+                "user_id": str(uuid4()),  # Will be set by the calling route
                 "name": created_endpoint.name,
                 "azure_endpoint_name": created_endpoint.name,
                 "azure_endpoint_url": getattr(created_endpoint, "scoring_uri", None),
@@ -338,7 +338,7 @@ transformations:
 
             endpoint_dict = {
                 "id": str(uuid4()),  # Generate a UUID for our internal tracking
-                "tenant_id": "",  # Will be set by the calling route
+                "user_id": str(uuid4()),  # Will be set by the calling route
                 "name": endpoint.name,
                 "azure_endpoint_name": endpoint.name,
                 "azure_endpoint_url": getattr(endpoint, "scoring_uri", None),
@@ -378,7 +378,7 @@ transformations:
 
             endpoint_dict = {
                 "id": str(uuid4()),  # Generate a UUID for our internal tracking
-                "tenant_id": "",  # Will be set by the calling route
+                "user_id": str(uuid4()),  # Will be set by the calling route
                 "name": updated_endpoint.name,
                 "azure_endpoint_name": updated_endpoint.name,
                 "azure_endpoint_url": getattr(updated_endpoint, "scoring_uri", None),

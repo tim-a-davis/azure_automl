@@ -31,7 +31,7 @@ async def create_endpoint(
     endpoint_name: str,
     description: Optional[str] = None,
     tags: Optional[str] = None,
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ) -> Endpoint:
@@ -56,7 +56,7 @@ async def create_endpoint(
         # Store the endpoint metadata in our database
         record = EndpointModel(
             id=azure_endpoint.id,
-            tenant_id=user,  # Store the user ID who created the endpoint
+            user_id=user.user_id,  # Store the user ID who created the endpoint
             name=azure_endpoint.name,
             azure_endpoint_name=azure_endpoint.azure_endpoint_name,
             azure_endpoint_url=azure_endpoint.azure_endpoint_url,
@@ -85,7 +85,7 @@ async def create_endpoint(
     tags=["mcp"],
 )
 async def list_endpoints(
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ) -> list[Endpoint]:
@@ -113,7 +113,7 @@ async def list_endpoints(
             ):
                 # This endpoint exists in Azure ML but not in our database, so add it
                 record = EndpointModel(
-                    tenant_id=user,
+                    user_id=user.user_id,
                     name=azure_endpoint.name,
                     azure_endpoint_name=azure_endpoint.name,
                     azure_endpoint_url=getattr(
@@ -149,7 +149,7 @@ async def list_endpoints(
 )
 async def get_endpoint(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ) -> Endpoint:
@@ -231,7 +231,7 @@ async def update_endpoint(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
     description: Optional[str] = None,
     tags: Optional[str] = None,
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ) -> Endpoint:
@@ -312,7 +312,7 @@ async def create_deployment(
     traffic_percentage: int = Form(
         0, description="Traffic percentage for this deployment"
     ),
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ):
@@ -362,7 +362,7 @@ async def create_deployment(
 )
 async def list_deployments(
     endpoint_id: str = Path(..., description="Endpoint identifier"),
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ):
@@ -395,7 +395,7 @@ async def update_traffic(
     traffic_allocation: str = Form(
         ..., description="JSON string of traffic allocation"
     ),
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ):
@@ -432,9 +432,6 @@ async def update_traffic(
             "traffic": updated_traffic,
         }
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to update traffic: {str(e)}"
-        )
         raise HTTPException(
             status_code=500, detail=f"Failed to update traffic: {str(e)}"
         )

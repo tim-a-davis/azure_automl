@@ -1,0 +1,38 @@
+-- SQL queries to set up roles and add tdavis4 as an admin user
+
+-- IMPORTANT: The user ID must be your Azure AD Object ID (OID)
+-- To find your Azure AD Object ID, you can:
+-- 1. Run: az ad signed-in-user show --query id -o tsv
+-- 2. Or go to Azure Portal > Microsoft Entra ID > Users > Find your user > Copy "Object ID"
+-- 3. Or look at the "oid" claim in an Azure AD token
+
+-- Step 1: Verify roles exist (they should already exist from migration 0005)
+-- Check what roles are in the database:
+SELECT id, name FROM roles;
+
+SELECT * FROM users;
+
+-- Step 2: Add tdavis4 as a user with ADMIN role
+-- Using subquery to find the ADMIN role ID dynamically
+INSERT INTO users (id, role_id, created_at, updated_at)
+SELECT 
+    'd80e0cf5-7f16-4dfa-ba6a-6da277ec9a03',  -- Your Azure AD Object ID (OID)
+    r.id,                                     -- ADMIN role ID (found dynamically)
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+FROM roles r 
+WHERE r.name = 'ADMIN';
+
+-- Query to verify the setup
+SELECT 
+    u.id as user_id,
+    r.name as role_name,
+    u.created_at
+FROM users u 
+JOIN roles r ON u.role_id = r.id 
+WHERE u.id = 'd80e0cf5-7f16-4dfa-ba6a-6da277ec9a03';
+
+-- Commands to find your Azure AD Object ID:
+-- 1. Using Azure CLI: az ad signed-in-user show --query id -o tsv
+-- 2. Using PowerShell: (Get-AzContext).Account.ExtendedProperties.HomeAccountId.Split('.')[0]
+-- 3. Via Azure Portal: Microsoft Entra ID > Users > [Your User] > Object ID

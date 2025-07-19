@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class Run(BaseModel):
     id: UUID
-    tenant_id: str
+    user_id: Optional[UUID] = None  # Will be set by the server from authenticated user
     experiment_id: Optional[UUID] = None
     job_name: Optional[str] = None
     queued_at: Optional[datetime] = None

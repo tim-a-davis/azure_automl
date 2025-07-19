@@ -40,7 +40,7 @@ def test_create_dataset():
     mock_service = MagicMock()
     mock_service.upload_dataset.return_value = datasets_route.Dataset(
         id=UUID("00000000-0000-0000-0000-000000000000"),
-        tenant_id="t",
+        uploaded_by=UUID("11111111-1111-1111-1111-111111111111"),
         name="data.csv",
         version="1",
         storage_uri="/tmp/data.csv",
@@ -59,13 +59,13 @@ def test_start_experiment():
     mock_service = MagicMock()
     mock_service.start_experiment.return_value = experiments_route.Run(
         id=UUID("11111111-1111-1111-1111-111111111111"),
-        tenant_id="t",
+        user_id=UUID("11111111-1111-1111-1111-111111111111"),
         job_name="job1",
     )
     app.dependency_overrides[experiments_route.get_service] = lambda: mock_service
     exp = {
         "id": "11111111-1111-1111-1111-111111111111",
-        "tenant_id": "t",
+        "user_id": "11111111-1111-1111-1111-111111111111",
         "task_type": "classification",
     }
     response = client.post("/experiments", json=exp)

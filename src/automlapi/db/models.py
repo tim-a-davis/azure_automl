@@ -83,7 +83,7 @@ class Dataset(TimestampMixin, Base):
 class Experiment(TimestampMixin, Base):
     __tablename__ = "experiments"
     id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
+    user_id = Column(UUID, nullable=True)  # User who created the experiment
     dataset_id = Column(UUID, ForeignKey("datasets.id", ondelete="CASCADE"))
     task_type = Column(String(100))
     primary_metric = Column(String(100))
@@ -104,7 +104,7 @@ class Experiment(TimestampMixin, Base):
 class Run(TimestampMixin, Base):
     __tablename__ = "runs"
     id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
+    user_id = Column(UUID, nullable=True)  # User who started the run
     experiment_id = Column(UUID, ForeignKey("experiments.id", ondelete="CASCADE"))
     job_name = Column(String(255))
     queued_at = Column(DateTime)
@@ -133,10 +133,10 @@ class Model(TimestampMixin, Base):
 
 class Endpoint(TimestampMixin, Base):
     __tablename__ = "endpoints"
-    __table_args__ = (Index("ix_endpoint_tenant_id", "tenant_id", "id"),)
+    __table_args__ = (Index("ix_endpoint_user_id", "user_id", "id"),)
 
     id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
+    user_id = Column(UUID, nullable=True)  # User who created the endpoint
     name = Column(String(255))
     azure_endpoint_name = Column(String(255))
     azure_endpoint_url = Column(String(500))
@@ -176,6 +176,14 @@ class User(TimestampMixin, Base):
 
 
 class AuditEntry(TimestampMixin, Base):
+    __tablename__ = "audit_entries"
+    __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)
+
+    id = Column(UUID, primary_key=True, default=default_uuid)
+    tenant_id = Column(String(255), nullable=False)
+    user_id = Column(UUID)
+    action = Column(String(100))
+    diff = Column(JSON)
     __tablename__ = "audit_entries"
     __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)
 

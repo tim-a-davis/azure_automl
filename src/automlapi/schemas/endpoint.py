@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 class Endpoint(BaseModel):
     id: UUID
-    tenant_id: str
+    user_id: UUID  # User who created the endpoint
     name: Optional[str] = Field(
         default=None, description="Display name for the endpoint"
     )

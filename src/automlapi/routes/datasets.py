@@ -1,5 +1,7 @@
 """API routes for managing datasets."""
 
+import json
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -50,7 +52,6 @@ async def create_dataset(
     Reads the provided file and stores it in the workspace. Returns metadata
     about the created dataset record.
     """
-    import json
 
     # Parse tags if provided
     parsed_tags = None
@@ -60,25 +61,29 @@ async def create_dataset(
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid JSON format for tags")
 
+    # Upload dataset to Azure ML
     data = await file.read()
     try:
-        dataset = service.upload_dataset(name, data)
+        dataset_info = service.upload_dataset(name, data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+    # Create database record
     record = DatasetModel(
-        id=dataset.id,
-        uploaded_by=user,  # Store the user ID who uploaded the dataset
-        asset_id=dataset.asset_id,
-        name=dataset.name,
-        version=dataset.version,
-        storage_uri=dataset.storage_uri,
+        id=dataset_info["id"],
+        uploaded_by=user.user_id,
+        asset_id=dataset_info.get("asset_id"),
+        name=dataset_info["name"],
+        version=dataset_info.get("version"),
+        storage_uri=dataset_info.get("storage_uri"),
         tags=parsed_tags,
     )
     db.add(record)
     db.commit()
     db.refresh(record)
-    return dataset
+
+    # Convert the database record to the response schema
+    return model_to_schema(record, Dataset)
 
 
 @router.get(

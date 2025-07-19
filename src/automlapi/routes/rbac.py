@@ -25,13 +25,33 @@ def verify_token(auth: HTTPAuthorizationCredentials = Depends(security)) -> str:
         if jwks_client is None:
             raise RuntimeError("PyJWKClient unavailable")
         signing_key = jwks_client.get_signing_key_from_jwt(token).key
-        claims = jwt.decode(
-            token,
-            signing_key,
-            algorithms=["RS256"],
-            audience=f"api://{settings.azure_client_id}",
-            issuer=f"https://login.microsoftonline.com/{settings.azure_tenant_id}/v2.0",
-        )
+        
+        # Try to decode with different issuer formats (like auth.py does)
+        possible_issuers = [
+            f"https://login.microsoftonline.com/{settings.azure_tenant_id}/v2.0",
+            f"https://sts.windows.net/{settings.azure_tenant_id}/",
+        ]
+        
+        claims = None
+        last_error = None
+        
+        for issuer in possible_issuers:
+            try:
+                claims = jwt.decode(
+                    token,
+                    signing_key,
+                    algorithms=["RS256"],
+                    audience=f"api://{settings.azure_client_id}",
+                    issuer=issuer,
+                )
+                break  # Success, exit the loop
+            except Exception as e:
+                last_error = e
+                continue
+        
+        if claims is None:
+            raise last_error or RuntimeError("Failed to validate token with any known issuer")
+            
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token validation failed")
     if "access_as_user" not in claims.get("scp", "").split():

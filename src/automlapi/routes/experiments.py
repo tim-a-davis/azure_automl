@@ -28,7 +28,7 @@ def get_service() -> AzureAutoMLService:
 )
 async def start_experiment(
     exp: Experiment,
-    user=Depends(get_current_user),
+    user: UserInfo = Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
 ) -> Run:
@@ -37,10 +37,13 @@ async def start_experiment(
     Creates a job in Azure ML and records the experiment and run information in
     the database.
     """
+    # Set the user_id to the current authenticated user
+    exp.user_id = user.user_id
+
     run = service.start_experiment(exp)
     exp_record = ExperimentModel(
-        id=exp.id,
-        tenant_id=exp.tenant_id,
+        id=run.experiment_id,
+        user_id=exp.user_id,
         dataset_id=exp.dataset_id,
         task_type=exp.task_type,
         primary_metric=exp.primary_metric,
@@ -59,8 +62,8 @@ async def start_experiment(
     db.add(
         RunModel(
             id=run.id,
-            tenant_id=run.tenant_id,
-            experiment_id=exp.id,
+            user_id=run.user_id,
+            experiment_id=run.experiment_id,  # Use run.experiment_id instead of exp.id
             job_name=run.job_name,
             queued_at=run.queued_at,
         )
@@ -163,7 +166,8 @@ def experiment_model_to_schema(model: ExperimentModel) -> Experiment:
     # Convert the model to dict first
     model_dict = {
         "id": model.id,
-        "tenant_id": model.tenant_id,
+        "user_id": model.user_id,
+        "dataset_id": model.dataset_id,
         "task_type": model.task_type,
         "primary_metric": model.primary_metric,
         "training_data": None,  # This field doesn't exist in the model

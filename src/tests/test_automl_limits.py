@@ -21,7 +21,7 @@ class TestAutoMLLimits:
         """Test that Experiment schema accepts limit parameters with defaults."""
         experiment = Experiment(
             id=uuid.uuid4(),
-            tenant_id="test-tenant",
+            user_id=uuid.uuid4(),
             task_type="classification",
             primary_metric="accuracy",
             target_column_name="target",
@@ -37,7 +37,7 @@ class TestAutoMLLimits:
         """Test that Experiment schema accepts custom limit parameters."""
         experiment = Experiment(
             id=uuid.uuid4(),
-            tenant_id="test-tenant",
+            user_id=uuid.uuid4(),
             task_type="regression",
             primary_metric="r2_score",
             target_column_name="target",
@@ -68,7 +68,7 @@ class TestAutoMLLimits:
         for task_type in task_types:
             experiment = Experiment(
                 id=uuid.uuid4(),
-                tenant_id="test-tenant",
+                user_id=uuid.uuid4(),
                 task_type=task_type,
                 target_column_name="target",
             )

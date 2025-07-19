@@ -59,9 +59,8 @@ def main():
             print(f"Error decoding token: {e}")
 
     print("\nYou can test this token with curl:")
-    print(f'curl -H "Authorization: Bearer {token}" http://localhost:8000/users')
+    print(f'curl -H "Authorization: Bearer {token}" http://localhost:8005/users')
 
 
 if __name__ == "__main__":
-    main()
     main()

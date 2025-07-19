@@ -110,18 +110,23 @@ def device_code_user_auth():
                     print(f"   User ID: {user_info.get('user_id')}")
                     print(f"   Tenant ID: {user_info.get('tenant_id')}")
 
-                # Test RBAC
+                # Test RBAC (uses original Azure token, not API JWT)
+                rbac_headers = {"Authorization": f"Bearer {user_token}"}
                 rbac_response = requests.get(
-                    "http://localhost:8005/rbac/assignments", headers=headers
+                    "http://localhost:8005/rbac/assignments", headers=rbac_headers
                 )
                 if rbac_response.status_code == 200:
                     assignments = rbac_response.json()
+                    print(assignments)
                     print(
                         f"✅ RBAC endpoint working: {len(assignments)} assignments found"
                     )
                 else:
                     print(f"❌ RBAC endpoint failed: {rbac_response.status_code}")
                     print(f"   Error: {rbac_response.text}")
+                    print(
+                        "   Note: RBAC endpoint expects original Azure token, not API JWT"
+                    )
 
                 print("\n🎉 User authentication flow completed successfully!")
                 print("\n🔑 Your user JWT token for testing:")
