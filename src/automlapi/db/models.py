@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     DateTime,
     Float,
@@ -86,6 +87,9 @@ class Dataset(TimestampMixin, Base):
     byte_size = Column(Integer)
     profile_path = Column(String(1000))
     tags = Column(JSON)  # Store tags for categorization and search
+    private = Column(
+        Boolean, nullable=False, default=False
+    )  # Whether dataset is private
 
 
 class Experiment(TimestampMixin, Base):

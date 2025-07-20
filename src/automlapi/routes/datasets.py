@@ -43,6 +43,7 @@ async def create_dataset(
     tags: str = Form(
         None, description="Optional JSON string of tags for categorization"
     ),
+    private: bool = Form(False, description="Whether the dataset should be private"),
     user=Depends(get_current_user),
     db: Session = Depends(get_db),
     service: AzureAutoMLService = Depends(get_service),
@@ -77,6 +78,7 @@ async def create_dataset(
         version=dataset_info.get("version"),
         storage_uri=dataset_info.get("storage_uri"),
         tags=parsed_tags,
+        private=private,
     )
     db.add(record)
     db.commit()
@@ -100,10 +102,18 @@ async def list_datasets(
     """List uploaded datasets.
 
     Returns all dataset records stored in the database. Optionally filter by uploader.
+    Private datasets are only visible to their uploaders.
     """
     query = db.query(DatasetModel)
+
+    # Filter by uploader if specified
     if uploaded_by:
         query = query.filter(DatasetModel.uploaded_by == uploaded_by)
+
+    # Apply privacy filter: show all public datasets + private datasets owned by current user
+    query = query.filter(
+        (~DatasetModel.private) | (DatasetModel.uploaded_by == user.user_id)
+    )
 
     records = query.all()
     return models_to_schema(records, Dataset)
@@ -122,11 +132,17 @@ async def get_dataset(
 ) -> Dataset:
     """Retrieve a single dataset.
 
-    Returns the dataset record for the given identifier if it exists.
+    Returns the dataset record for the given identifier if it exists and the user has access.
+    Private datasets are only accessible to their uploaders.
     """
     record = db.get(DatasetModel, dataset_id)
     if not record:
         raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Check privacy access
+    if record.private and record.uploaded_by != user.user_id:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
     return model_to_schema(record, Dataset)
 
 
@@ -195,9 +211,11 @@ async def search_datasets(
     """Search datasets by tags or name.
 
     Allows filtering datasets by tag key/value pairs or partial name matching.
+    Private datasets are only visible to their uploaders.
     """
     query = db.query(DatasetModel)
 
+    # Apply search filters
     if tag_key and tag_value:
         # Search for datasets where tags contain the key-value pair
         query = query.filter(DatasetModel.tags.op("->>").text(tag_key) == tag_value)
@@ -207,6 +225,11 @@ async def search_datasets(
 
     if name_like:
         query = query.filter(DatasetModel.name.ilike(f"%{name_like}%"))
+
+    # Apply privacy filter: show all public datasets + private datasets owned by current user
+    query = query.filter(
+        (~DatasetModel.private) | (DatasetModel.uploaded_by == user.user_id)
+    )
 
     records = query.all()
     return models_to_schema(records, Dataset)
@@ -225,12 +248,17 @@ async def get_dataset_experiments(
     """Get experiments that used this dataset.
 
     Returns a list of experiments that were run using the specified dataset.
+    Only accessible if the user has access to the dataset.
     """
     from ..db.models import Experiment as ExperimentModel
 
-    # First check if dataset exists
+    # First check if dataset exists and user has access
     dataset = db.get(DatasetModel, dataset_id)
     if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Check privacy access
+    if dataset.private and dataset.uploaded_by != user.user_id:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     # Get experiments that used this dataset
@@ -257,11 +285,16 @@ async def get_dataset_models(
     """Get models trained on this dataset.
 
     Returns a list of models that were trained using the specified dataset.
+    Only accessible if the user has access to the dataset.
     """
 
-    # First check if dataset exists
+    # First check if dataset exists and user has access
     dataset = db.get(DatasetModel, dataset_id)
     if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    # Check privacy access
+    if dataset.private and dataset.uploaded_by != user.user_id:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     # Get models that used this dataset

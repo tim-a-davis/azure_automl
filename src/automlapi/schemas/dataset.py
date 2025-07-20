@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -19,4 +19,7 @@ class Dataset(BaseModel):
     profile_path: Optional[str] = None
     tags: Optional[Dict[str, Any]] = Field(
         default=None, description="Tags for categorization and metadata"
+    )
+    private: bool = Field(
+        default=False, description="Whether the dataset is private to the uploader"
     )
