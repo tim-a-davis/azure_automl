@@ -1,9 +1,17 @@
 import uuid
 
-from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer
-from sqlalchemy import String
+from sqlalchemy import (
+    JSON,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    TypeDecorator,
+)
 from sqlalchemy import String as SQLString
-from sqlalchemy import TypeDecorator
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
 from sqlalchemy.sql import func
 
@@ -119,15 +127,30 @@ class Run(TimestampMixin, Base):
 class Model(TimestampMixin, Base):
     __tablename__ = "models"
     __table_args__ = (
-        Index("ix_model_tenant_name", "tenant_id", "azure_model_id", unique=True),
+        Index("ix_models_user_id", "user_id"),
+        Index("ix_models_run_id", "run_id"),
+        Index("ix_models_experiment_id", "experiment_id"),
+        Index("ix_models_azure_model", "azure_model_name", "azure_model_version"),
     )
 
     id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
+    user_id = Column(UUID, nullable=False)  # User who registered the model
     dataset_id = Column(UUID, ForeignKey("datasets.id", ondelete="SET NULL"))
+    experiment_id = Column(UUID, ForeignKey("experiments.id", ondelete="CASCADE"))
+    run_id = Column(UUID, ForeignKey("runs.id", ondelete="CASCADE"))
     task_type = Column(String(100))
+    algorithm = Column(String(255))  # LightGBM, XGBoost, etc.
+    azure_model_name = Column(String(255))  # Name in Azure ML model registry
+    azure_model_version = Column(String(50))  # Version in Azure ML
+    model_uri = Column(String(1000))  # Full Azure ML model URI
+    best_score = Column(Float)  # Primary metric score
+    performance_metrics = Column(JSON)  # All performance metrics
+    model_metadata = Column(JSON)  # Comprehensive model metadata
     input_schema = Column(JSON)
     output_schema = Column(JSON)
+    registration_status = Column(String(50), default="pending")
+    error_message = Column(String(1000))  # For registration failures
+    # Keep existing field for backward compatibility
     azure_model_id = Column(String(255))
 
 
@@ -144,6 +167,11 @@ class Endpoint(TimestampMixin, Base):
     provisioning_state = Column(String(50))
     description = Column(String(1000))
     dataset_id = Column(UUID, ForeignKey("datasets.id", ondelete="SET NULL"))
+    experiment_id = Column(UUID, ForeignKey("experiments.id", ondelete="SET NULL"))
+    run_id = Column(UUID, ForeignKey("runs.id", ondelete="SET NULL"))
+    deployment_status = Column(String(50), default="creating")
+    deployment_metadata = Column(JSON)
+    endpoint_metadata = Column(JSON)
     deployments = Column(JSON)
     traffic = Column(JSON)
     tags = Column(JSON)
@@ -151,6 +179,32 @@ class Endpoint(TimestampMixin, Base):
     blue_traffic = Column(Integer)
     latency = Column(Float)
     error_rate = Column(Float)
+
+
+class Deployment(TimestampMixin, Base):
+    __tablename__ = "deployments"
+    __table_args__ = (
+        Index("ix_deployments_endpoint_id", "endpoint_id"),
+        Index("ix_deployments_model_id", "model_id"),
+        Index("ix_deployments_user_id", "user_id"),
+        Index(
+            "ix_deployment_name_endpoint", "endpoint_id", "deployment_name", unique=True
+        ),
+    )
+
+    id = Column(UUID, primary_key=True, default=default_uuid)
+    user_id = Column(UUID, nullable=False)
+    endpoint_id = Column(UUID, ForeignKey("endpoints.id", ondelete="CASCADE"))
+    model_id = Column(UUID, ForeignKey("models.id", ondelete="CASCADE"))
+    deployment_name = Column(String(255), nullable=False)
+    azure_deployment_name = Column(String(255))
+    instance_type = Column(String(100), default="Standard_DS3_v2")
+    instance_count = Column(Integer, default=1)
+    traffic_percentage = Column(Integer, default=0)
+    deployment_status = Column(String(50), default="creating")
+    provisioning_state = Column(String(50))
+    deployment_config = Column(JSON)
+    error_message = Column(String(1000))
 
 
 class CostRecord(TimestampMixin, Base):
@@ -176,22 +230,6 @@ class User(TimestampMixin, Base):
 
 
 class AuditEntry(TimestampMixin, Base):
-    __tablename__ = "audit_entries"
-    __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)
-
-    id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
-    user_id = Column(UUID)
-    action = Column(String(100))
-    diff = Column(JSON)
-    __tablename__ = "audit_entries"
-    __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)
-
-    id = Column(UUID, primary_key=True, default=default_uuid)
-    tenant_id = Column(String(255), nullable=False)
-    user_id = Column(UUID)
-    action = Column(String(100))
-    diff = Column(JSON)
     __tablename__ = "audit_entries"
     __table_args__ = (Index("ix_audit_tenant_timestamp", "tenant_id", "created_at"),)
 

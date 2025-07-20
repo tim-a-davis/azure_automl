@@ -13,7 +13,17 @@ from fastapi_mcp.types import AuthConfig
 
 from .auth import get_current_user
 from .config import settings
-from .routes import auth, datasets, endpoints, experiments, models, rbac, runs, users
+from .routes import (
+    auth,
+    datasets,
+    deploy,
+    endpoints,
+    experiments,
+    models,
+    rbac,
+    runs,
+    users,
+)
 
 scheduler = AsyncIOScheduler()
 
@@ -82,6 +92,7 @@ app.include_router(models.router)
 app.include_router(endpoints.router)
 app.include_router(users.router)
 app.include_router(rbac.router)
+app.include_router(deploy.router)
 
 # Setup MCP after all routes are added
 mcp = FastApiMCP(
